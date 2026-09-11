@@ -4,7 +4,8 @@ import type GCalSync from './main';
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
-const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks';
+// The narrowest scopes that cover calendarList.list and events.*: no calendar sharing, settings or deletion.
+const SCOPES = 'https://www.googleapis.com/auth/calendar.calendarlist.readonly https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/tasks';
 const LOGIN_TIMEOUT_MS = 120_000;
 
 export class AuthError extends Error {}

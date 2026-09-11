@@ -46,7 +46,9 @@
 		assert(/^http:\/\/127\.0\.0\.1:\d+$/.test(redirect), 'redirect ' + redirect);
 		assert(q.get('code_challenge_method') === 'S256' && (q.get('code_challenge') || '').length >= 43, 'challenge');
 		assert(q.get('access_type') === 'offline' && q.get('prompt') === 'consent', 'offline+consent');
-		assert(q.get('scope').includes('auth/calendar') && q.get('scope').includes('auth/tasks'), 'scopes');
+		const scope = q.get('scope');
+		assert(scope.includes('auth/calendar.calendarlist.readonly') && scope.includes('auth/calendar.events') && scope.includes('auth/tasks'), 'scopes');
+		assert(!/auth\/calendar(\s|$)/.test(scope), 'no full calendar scope');
 		assert(state.length >= 16, 'state');
 		assert(plugin.auth.pending === true, 'pending while waiting');
 		// wrong state → rejected, server closed
