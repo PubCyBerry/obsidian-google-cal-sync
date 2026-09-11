@@ -51,12 +51,18 @@
 		assert(!/auth\/calendar(\s|$)/.test(scope), 'no full calendar scope');
 		assert(state.length >= 16, 'state');
 		assert(plugin.auth.pending === true, 'pending while waiting');
-		// wrong state → rejected, server closed
+		// wrong state → 404, ignored, the login keeps waiting
 		const r = await get(`${redirect}/?state=WRONG&code=abc`);
-		assert(r.status === 200 && r.body.includes('Login failed'), 'failure page: ' + r.body.slice(0, 80));
+		assert(r.status === 404, 'foreign request answered 404: ' + r.status);
+		assert(plugin.auth.pending === true, 'still pending after a foreign request');
+		const r2 = await get(`${redirect}/?error=access_denied`);
+		assert(r2.status === 404, 'error without state ignored: ' + r2.status);
+		// the real redirect with an error → rejected, server closed
+		const r3 = await get(`${redirect}/?state=${state}&error=cancel`);
+		assert(r3.status === 200 && r3.body.includes('Login failed'), 'failure page: ' + r3.body.slice(0, 80));
 		let err = null;
 		await promise.catch((e) => (err = e));
-		assert(err && /State mismatch/.test(err.message), 'rejected with state mismatch: ' + err);
+		assert(err && err.message === 'cancel', 'rejected with the error: ' + err);
 		assert(plugin.auth.pending === false, 'pending reset');
 		let closed = false;
 		await get(`${redirect}/`).catch(() => (closed = true));
@@ -64,12 +70,13 @@
 		return { redirect, challengeLen: q.get('code_challenge').length };
 	});
 
-	await step('Google error on redirect → surfaced', async () => {
+	await step('Google error on redirect → surfaced, markup in it never reaches the page', async () => {
 		const { promise, redirect, state } = await startLogin();
-		await get(`${redirect}/?state=${state}&error=access_denied`);
+		const r = await get(`${redirect}/?state=${state}&error=access_denied${encodeURIComponent('<script>alert(1)</script>')}`);
+		assert(!r.body.includes('<script'), 'error is sanitised: ' + r.body.slice(0, 200));
 		let err = null;
 		await promise.catch((e) => (err = e));
-		assert(err && err.message === 'access_denied', 'error surfaced: ' + err);
+		assert(err && err.message === 'access_deniedscriptalert1script', 'error surfaced without markup: ' + err);
 		return 'ok';
 	});
 

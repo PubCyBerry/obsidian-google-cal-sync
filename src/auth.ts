@@ -138,17 +138,19 @@ export class Auth {
 				};
 				const server = http.createServer((req, res) => {
 					const url = new URL(req.url ?? '/', 'http://127.0.0.1');
-					if (url.pathname !== '/') {
+					// Only Google's redirect for this login (root path, our state) counts. Anything else is answered and
+					// ignored so that a stray request cannot cancel the login; the timeout still closes the server.
+					if (url.pathname !== '/' || url.searchParams.get('state') !== state) {
 						res.writeHead(404).end();
 						return;
 					}
-					const ok = url.searchParams.get('state') === state && !!url.searchParams.get('code');
-					const error = url.searchParams.get('error');
+					const code = url.searchParams.get('code') ?? '';
+					// Google's error codes are ASCII words; nothing else is echoed into the page.
+					const error = (url.searchParams.get('error') ?? '').replace(/[^\w.-]/g, '');
 					res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-					res.end(`<!doctype html><title>Google Calendar Tasks Sync</title><body style="font-family:sans-serif;padding:2em"><h2>${ok ? 'Connected. You can close this window and return to Obsidian.' : 'Login failed.'}</h2>${error ? `<p>${error}</p>` : ''}</body>`);
-					if (error) finish(new AuthError(error));
-					else if (!ok) finish(new AuthError('State mismatch. Try logging in again.'));
-					else finish(null, url.searchParams.get('code') ?? '', `http://127.0.0.1:${port}`);
+					res.end(`<!doctype html><title>Google Calendar Tasks Sync</title><body style="font-family:sans-serif;padding:2em"><h2>${code ? 'Connected. You can close this window and return to Obsidian.' : 'Login failed.'}</h2>${error ? `<p>${error}</p>` : ''}</body>`);
+					if (code) finish(null, code, `http://127.0.0.1:${port}`);
+					else finish(new AuthError(error || 'Google did not send a code.'));
 				});
 				let port = 0;
 				const timer = window.setTimeout(() => finish(new AuthError('Timed out waiting for the browser.')), LOGIN_TIMEOUT_MS);
