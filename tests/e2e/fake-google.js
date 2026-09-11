@@ -145,6 +145,6 @@
 	};
 	plugin.auth.token = async () => 'fake-token';
 	plugin.settings.refreshToken = 'fake-refresh-token';
-	plugin.notifyChanged();
+	void plugin.auth.unlock().then(() => plugin.notifyChanged()); // plain token → not locked, whatever this vault's keychain holds
 	return 'fake google installed';
 })();

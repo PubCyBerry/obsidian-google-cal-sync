@@ -37,6 +37,8 @@ export default class GCalSync extends Plugin {
 	async onload(): Promise<void> {
 		this.settings = loadSettings(await this.loadData());
 		this.auth = new Auth(this);
+		// Decrypting the stored login costs a key derivation, so it runs in the background rather than delaying startup.
+		void this.auth.unlock().then(() => this.notifyChanged());
 		this.google = new GoogleClient(this.auth);
 		this.cache = new Cache(this.app);
 		this.calendars = new CalendarSync(this.google, this.cache);
@@ -112,9 +114,10 @@ export default class GCalSync extends Plugin {
 	/** data.json changed on disk (vault sync brought a login or settings from another device). */
 	async onExternalSettingsChange(): Promise<void> {
 		this.settings = loadSettings(await this.loadData());
+		await this.auth.unlock();
 		this.restartTimer();
 		this.notifyChanged();
-		if (this.auth.loggedIn) void this.sync();
+		void this.sync();
 	}
 
 	async saveSettings(): Promise<void> {
@@ -137,7 +140,7 @@ export default class GCalSync extends Plugin {
 		if (this.timer) window.clearInterval(this.timer);
 		this.timer = this.registerInterval(
 			window.setInterval(() => {
-				if (this.auth.loggedIn && !document.hidden) void this.sync();
+				if (!document.hidden) void this.sync();
 			}, this.settings.syncIntervalMinutes * 60_000),
 		);
 	}
@@ -196,7 +199,7 @@ export default class GCalSync extends Plugin {
 	/** Incremental sync of enabled calendars, then task mirroring. Deduplicated and throttled across callers. */
 	sync(opts: { force?: boolean; notice?: boolean } = {}): Promise<void> {
 		if (this.running) return this.running;
-		if (!this.auth.loggedIn) return Promise.resolve();
+		if (!this.auth.loggedIn || this.auth.locked) return Promise.resolve();
 		if (!opts.force && Date.now() - this.lastStart < MIN_SYNC_GAP_MS) return Promise.resolve();
 		this.lastStart = Date.now();
 		this.running = this.runSync(opts.notice ?? false).finally(() => {

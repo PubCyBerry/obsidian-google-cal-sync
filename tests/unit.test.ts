@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { setRequestUrl } from 'obsidian';
+import { Auth, AuthError } from '../src/auth';
 import { Cache, type CalendarCache } from '../src/cache';
 import { CalendarSync, fromGoogle, toGoogle, type GoogleEvent } from '../src/calendar';
+import { decrypt, encrypt, isEncrypted } from '../src/crypto';
 import { GoogleClient, GoogleError } from '../src/google';
-import { DEFAULT_SETTINGS, loadSettings } from '../src/settings';
+import { DEFAULT_SETTINGS, loadSettings, type GCalSettings } from '../src/settings';
 import { safeFileName } from '../src/tasks';
 import { parseOptions } from '../src/view';
 
@@ -39,6 +41,66 @@ test('event mapping between Google and the cache', () => {
 		end: { dateTime: '2026-09-01T11:00:00Z', date: null },
 	});
 	assert.deepEqual(toGoogle({ description: '' }, true), { description: '' });
+});
+
+test('crypto: passphrase round trip, wrong passphrase rejected, fresh salt and IV each time', async () => {
+	const enc = await encrypt('1//0refresh-token', 'correct horse');
+	assert.ok(isEncrypted(enc) && !isEncrypted('1//0refresh-token'));
+	assert.doesNotMatch(enc, /refresh/);
+	assert.equal(await decrypt(enc, 'correct horse'), '1//0refresh-token');
+	await assert.rejects(decrypt(enc, 'wrong'));
+	await assert.rejects(decrypt('enc1.broken', 'correct horse'));
+	assert.notEqual(await encrypt('x', 'p'), await encrypt('x', 'p'));
+});
+
+/** A plugin stand-in with one device's keychain; `settings` is the shared data.json that vault sync would carry. */
+function fakePlugin(settings: GCalSettings) {
+	const keychain = new Map<string, string>();
+	return {
+		settings,
+		saved: 0,
+		app: { secretStorage: { getSecret: (id: string) => keychain.get(id) ?? null, setSecret: (id: string, v: string) => keychain.set(id, v) } },
+		saveSettings() {
+			this.saved++;
+			return Promise.resolve();
+		},
+		notifyChanged() {},
+		cache: { clearAll() {} },
+	};
+}
+
+test('Auth: a passphrase encrypts the stored login, a second device unlocks it with the same passphrase', async () => {
+	const settings: GCalSettings = { ...DEFAULT_SETTINGS, clientId: 'id', clientSecret: 'sec', refreshToken: 'plain-token' };
+	const desktop = fakePlugin(settings);
+	const auth = new Auth(desktop as never);
+	assert.equal(await auth.unlock(), true, 'plain-text login from an earlier version still works');
+	assert.ok(auth.plain && !auth.locked);
+	await auth.setPassphrase('  pw  ');
+	assert.ok(isEncrypted(settings.refreshToken) && !auth.plain && !auth.locked);
+	assert.equal(desktop.app.secretStorage.getSecret('google-cal-sync-passphrase'), 'pw');
+	assert.equal(desktop.saved, 1);
+
+	const phone = fakePlugin(settings);
+	const other = new Auth(phone as never);
+	assert.equal(await other.unlock(), false, 'no passphrase on this device');
+	assert.ok(other.loggedIn && other.locked);
+	await assert.rejects(other.setPassphrase('nope'), (e: unknown) => e instanceof AuthError && /Wrong/.test(e.message));
+	assert.ok(other.locked);
+	await other.setPassphrase('pw');
+	assert.ok(!other.locked);
+	assert.equal(phone.saved, 0, 'unlocking writes nothing to data.json');
+
+	let sent = '';
+	setRequestUrl(async (req) => {
+		sent = String(req.body);
+		return { status: 200, text: '{"access_token":"at","expires_in":3600}', headers: {} };
+	});
+	assert.equal(await other.token(), 'at');
+	assert.match(sent, /refresh_token=plain-token/, 'the decrypted token is what Google receives');
+
+	await other.logout();
+	assert.equal(settings.refreshToken, '');
+	assert.ok(!other.loggedIn && !other.locked);
 });
 
 test('safeFileName strips characters Obsidian rejects', () => {

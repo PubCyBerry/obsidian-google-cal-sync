@@ -115,7 +115,7 @@ export class GCalBlock extends MarkdownRenderChild {
 
 	private stateKey(): string {
 		const s = this.plugin.settings;
-		return !s.clientId || !s.clientSecret ? 'no-client' : !s.refreshToken ? 'no-token' : 'ready';
+		return !s.clientId || !s.clientSecret ? 'no-client' : !s.refreshToken ? 'no-token' : this.plugin.auth.locked ? 'locked' : 'ready';
 	}
 
 	private async render(): Promise<void> {
@@ -132,6 +132,10 @@ export class GCalBlock extends MarkdownRenderChild {
 				cls: 'gcal-empty',
 				text: Platform.isDesktop ? 'Log in to Google in the plugin settings to see your calendar here.' : 'Log in on desktop. The calendar appears here once the vault syncs the login to this device.',
 			});
+			return;
+		}
+		if (state === 'locked') {
+			this.containerEl.createEl('p', { cls: 'gcal-empty', text: 'Enter the sync passphrase in the plugin settings to unlock the calendar on this device.' });
 			return;
 		}
 		this.toolbar = this.containerEl.createDiv({ cls: 'gcal-toolbar' });

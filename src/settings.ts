@@ -14,6 +14,7 @@ export type Weekday = (typeof WEEKDAYS)[number];
 export interface GCalSettings {
 	clientId: string;
 	clientSecret: string;
+	/** `enc1.…` (see crypto.ts) since 1.2.0; plain text from earlier versions until a passphrase is set. */
 	refreshToken: string;
 	account: string;
 	calendars: Record<string, CalendarInfo>;
@@ -99,7 +100,7 @@ export class GCalSettingTab extends PluginSettingTab {
 					{ name: 'Client ID', desc: 'Client ID of the desktop app OAuth client from Google Cloud.', control: { type: 'text', key: 'clientId' } },
 					{
 						name: 'Client secret',
-						desc: "Stored in this plugin's data.json so that your other devices (including mobile) can reuse the login. Keep that file private.",
+						desc: "Stored in this plugin's data.json so that your other devices (including mobile) can reuse it. Google does not treat the secret of a desktop app as confidential.",
 						render: (setting) => {
 							setting.addText((t) => {
 								t.inputEl.type = 'password';
@@ -111,6 +112,7 @@ export class GCalSettingTab extends PluginSettingTab {
 							});
 						},
 					},
+					{ name: 'Sync passphrase', render: (setting) => this.renderPassphrase(setting) },
 					{ name: 'Connection', render: (setting) => this.renderConnect(setting) },
 				],
 			},
@@ -199,11 +201,45 @@ export class GCalSettingTab extends PluginSettingTab {
 		];
 	}
 
+	/**
+	 * The passphrase encrypts the refresh token in data.json; each device keeps it in its own keychain. Applied with the
+	 * button, not per keystroke: every application re-derives a key, and a half-typed value must never be sealed.
+	 */
+	private renderPassphrase(row: Setting): void {
+		const { auth } = this.plugin;
+		row.setDesc(
+			auth.locked
+				? 'The login synced to this device is encrypted. Enter the passphrase you set on desktop to unlock it here.'
+				: auth.plain
+					? 'Your login is stored in plain text by an earlier version. Set a passphrase to encrypt it.'
+					: auth.passphrase
+						? 'Set on this device. Entering a new one re-encrypts the stored login.'
+						: 'Encrypts the login in data.json so that vault sync carries only ciphertext. Enter the same passphrase once on each device.',
+		);
+		let value = '';
+		row.addText((t) => {
+			t.inputEl.type = 'password';
+			t.setPlaceholder(auth.passphrase && !auth.locked ? '••••••••' : 'Passphrase').onChange((v) => (value = v));
+		});
+		row.addButton((b) => {
+			b.setButtonText(auth.locked ? 'Unlock' : 'Set').onClick(async () => {
+				b.setDisabled(true);
+				try {
+					await auth.setPassphrase(value);
+					new Notice(auth.loggedIn ? 'Login encrypted with the passphrase.' : 'Passphrase set.');
+				} catch (e) {
+					new Notice(errorMessage(e));
+				}
+				this.update();
+			});
+		});
+	}
+
 	private renderConnect(row: Setting): void {
 		const { plugin } = this;
 		const s = plugin.settings;
 		if (s.refreshToken) {
-			row.setDesc(`Connected as ${s.account || 'Google account'}.`);
+			row.setDesc(`Connected as ${s.account || 'Google account'}.${plugin.auth.locked ? ' Enter the sync passphrase above to use it on this device.' : ''}`);
 			row.addButton((b) =>
 				b.setButtonText('Log out').onClick(async () => {
 					b.setDisabled(true);
@@ -221,9 +257,9 @@ export class GCalSettingTab extends PluginSettingTab {
 			row.setDesc('Finish the login in your browser. This page updates when Google redirects back.');
 			return;
 		}
-		row.setDesc('Enter the client ID and secret, then log in. A browser window opens for Google consent.');
+		row.setDesc('Enter the client ID, secret and a sync passphrase, then log in. A browser window opens for Google consent.');
 		row.addButton((b) => {
-			b.setButtonText('Log in to Google').setCta().setDisabled(!s.clientId || !s.clientSecret);
+			b.setButtonText('Log in to Google').setCta().setDisabled(!s.clientId || !s.clientSecret || !plugin.auth.passphrase);
 			b.onClick(async () => {
 				this.update();
 				try {

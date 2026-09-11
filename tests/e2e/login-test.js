@@ -23,6 +23,7 @@
 	const assert = (c, m) => {
 		if (!c) throw new Error(m);
 	};
+	app.secretStorage.setSecret('google-cal-sync-passphrase', 'e2e-passphrase');
 	const startLogin = async () => {
 		let captured = '';
 		window.open = (u) => {
@@ -77,6 +78,17 @@
 		let err = null;
 		await promise.catch((e) => (err = e));
 		assert(err && err.message === 'access_deniedscriptalert1script', 'error surfaced without markup: ' + err);
+		return 'ok';
+	});
+
+	await step('login refuses to start without a sync passphrase', async () => {
+		const saved = app.secretStorage.getSecret('google-cal-sync-passphrase');
+		app.secretStorage.setSecret('google-cal-sync-passphrase', '');
+		let err = null;
+		await plugin.auth.login().catch((e) => (err = e));
+		app.secretStorage.setSecret('google-cal-sync-passphrase', saved);
+		assert(err && /passphrase/.test(err.message), 'refused: ' + err);
+		assert(plugin.auth.pending === false, 'nothing left pending');
 		return 'ok';
 	});
 
