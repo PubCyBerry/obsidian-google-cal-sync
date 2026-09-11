@@ -4,6 +4,8 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-11
+
 ### Added
 
 - **Sync passphrase** setting. The refresh token is now written to `data.json` encrypted with a key derived from the passphrase (PBKDF2-SHA256, AES-256-GCM), so vault sync carries only ciphertext. Each device keeps the passphrase in Obsidian's keychain and unlocks the login once; a device without it shows *Enter the sync passphrase* instead of the calendar and syncs nothing.
@@ -66,7 +68,8 @@ First release, published under the id `google-cal-sync` after the earlier ids `g
 - Desktop loopback OAuth with PKCE and state check; token refresh on every platform; logout with revocation. Mobile reuses the desktop login through vault sync.
 - Declarative settings tab, commands (`Log in to Google`, `Log out`, `Sync now`, `Clear cache`), unit tests, and in-app end-to-end scripts against a fake Google backend.
 
-[Unreleased]: https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.1.0...HEAD
+[Unreleased]: https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.2.0...HEAD
+[1.2.0]: https://github.com/PubCyBerry/obsidian-google-cal-sync/releases/tag/1.2.0
 [1.1.0]: https://github.com/PubCyBerry/obsidian-google-cal-sync/releases/tag/1.1.0
 [1.0.4]: https://github.com/PubCyBerry/obsidian-google-cal-sync/releases/tag/1.0.4
 [1.0.3]: https://github.com/PubCyBerry/obsidian-google-cal-sync/releases/tag/1.0.3
