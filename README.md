@@ -13,6 +13,7 @@ A `gcal` code block that turns into your **Google Calendar** (all calendars, mon
 
 - [Setup guide](docs/setup-guide.md): first-time walkthrough from Google Cloud to your phone, with troubleshooting.
 - [Architecture](docs/architecture.md): C4 context, containers and components, runtime flows, data, decisions.
+- [Changelog](CHANGELOG.md): what changed in each release.
 
 ## Setup
 
