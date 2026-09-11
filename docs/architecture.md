@@ -39,7 +39,8 @@ C4Container
     System_Boundary(obsidian, "Obsidian (Electron on desktop, Capacitor on mobile)") {
         Container(main, "main.js", "TypeScript bundled by esbuild", "Plugin code plus FullCalendar v6, loaded lazily on first code block")
         Container(loopback, "Loopback server", "Node http, desktop only", "Receives Google's redirect on http://127.0.0.1:<port> for one login")
-        ContainerDb(datajson, "data.json", "JSON in the plugin folder", "Client id/secret, refresh token, calendar toggles, project→list map, settings")
+        ContainerDb(datajson, "data.json", "JSON in the plugin folder", "Client id/secret, refresh token encrypted with the sync passphrase, calendar toggles, project→list map, settings")
+        ContainerDb(keychain, "Obsidian keychain", "app.secretStorage, per vault, per device, OS-encrypted", "Sync passphrase")
         ContainerDb(local, "localStorage", "Per vault, per device", "Event cache and syncToken per calendar; previous task id→path map")
         ContainerDb(notes, "Task notes", "Markdown with frontmatter", "type: Task under <projects>/<project>/tasks/")
     }
@@ -51,11 +52,12 @@ C4Container
     Rel(browser, loopback, "redirect after consent", "HTTP 127.0.0.1")
     Rel(main, google, "requestUrl", "HTTPS")
     Rel(main, datajson, "loadData / saveData")
+    Rel(main, keychain, "getSecret / setSecret")
     Rel(main, local, "app.loadLocalStorage / saveLocalStorage")
     Rel(main, notes, "metadataCache read, processFrontMatter write, create, rename")
 ```
 
-Why two stores: `data.json` is copied between devices by vault sync, so it holds what every device needs (the login) and is written as rarely as possible to avoid conflict copies. The event cache changes on every sync and is device-local, so it lives in localStorage and never travels.
+Why three stores: `data.json` is copied between devices by vault sync, so it holds what every device needs (the login) and is written as rarely as possible to avoid conflict copies. The refresh token inside it is ciphertext; the passphrase that unlocks it never travels and sits in each device's keychain, which Obsidian encrypts with the operating system (Electron `safeStorage` on desktop, the iOS/Android secure store on mobile). The event cache changes on every sync and is device-local, so it lives in localStorage and never travels.
 
 ## Level 3: Components
 
@@ -67,7 +69,8 @@ C4Component
     Container_Boundary(main, "main.js") {
         Component(plugin, "main.ts · GCalSync", "Plugin", "Loads settings, registers block/commands/settings tab, owns the sync loop, throttles and deduplicates syncs, publishes change notifications")
         Component(settings, "settings.ts", "PluginSettingTab (declarative)", "Settings schema, defaults, tolerant loader, settings UI")
-        Component(auth, "auth.ts · Auth", "OAuth", "PKCE, state, loopback server (desktop), token exchange, refresh with single-flight, logout with revoke")
+        Component(auth, "auth.ts · Auth", "OAuth", "PKCE, state, loopback server (desktop), token exchange, refresh with single-flight, logout with revoke; seals and unlocks the stored refresh token with the passphrase")
+        Component(cryptomod, "crypto.ts", "WebCrypto", "base64url, random tokens, SHA-256 for PKCE; PBKDF2-SHA256 → AES-256-GCM for the stored refresh token")
         Component(google, "google.ts · GoogleClient", "HTTP", "requestUrl wrapper: bearer token, one retry after 401, errors as GoogleError(status)")
         Component(calendar, "calendar.ts · CalendarSync", "Domain", "calendarList; events.list full or incremental; 410 → full; insert/patch(If-Match)/delete; keeps the cache current")
         Component(tasks, "tasks.ts · TaskMirror", "Domain", "Collects task notes, pairs them with Google tasks by id, applies field-owner rules, imports, deletes, moves")
@@ -97,11 +100,13 @@ C4Component
     Rel(tasks, google, "")
     Rel(tasks, cache, "task index")
     Rel(google, auth, "token(force?)")
+    Rel(auth, cryptomod, "")
 ```
 
 | Component | Depends on Obsidian for | Depends on Node for |
 | --- | --- | --- |
-| `auth.ts` | `requestUrl`, `Platform` | `http` (only inside `Platform.isDesktop`) |
+| `auth.ts` | `requestUrl`, `Platform`, `App.secretStorage` | `http` (only inside `Platform.isDesktop`) |
+| `crypto.ts` | nothing (`crypto.subtle`, `btoa`/`atob`) | nothing |
 | `google.ts` | `requestUrl` | nothing |
 | `calendar.ts`, `cache.ts` | `App.loadLocalStorage/saveLocalStorage` | nothing |
 | `tasks.ts` | `Vault`, `MetadataCache`, `FileManager.processFrontMatter/renameFile` | nothing |
@@ -121,10 +126,14 @@ sequenceDiagram
     participant L as Loopback :port
     participant B as Browser
     participant G as Google OAuth
+    participant K as Keychain
     participant D as data.json
 
+    U->>S: Sync passphrase → Set
+    S->>K: setSecret(passphrase)
     U->>S: Log in to Google
     S->>A: login()
+    A->>K: getSecret(passphrase), refuse without one
     A->>A: verifier, S256 challenge, state
     A->>L: listen 127.0.0.1:0
     A->>B: window.open(auth URL with challenge, state, access_type=offline, prompt=consent)
@@ -136,11 +145,16 @@ sequenceDiagram
     L-->>A: code
     A->>G: POST /token (code, verifier, client id+secret, redirect_uri)
     G-->>A: access_token, refresh_token
-    A->>D: refreshToken, calendars (via calendarList), account
+    A->>A: encrypt(refresh_token, passphrase)
+    A->>D: refreshToken (enc1.…), calendars (via calendarList), account
     A-->>S: connected
 ```
 
 The access token lives in memory and is refreshed 60 s before expiry or after a 401, on every platform, using only `requestUrl`. Concurrent callers share one refresh (single-flight).
+
+### Unlock (every device, at start)
+
+`data.json` arrives on another device through vault sync with the token as ciphertext. At load the plugin reads the passphrase from that device's keychain and decrypts the token into memory; the key derivation runs in the background so `onload` stays cheap. Without a passphrase, or with a wrong one, the plugin is *locked*: the block and pane show *Enter the sync passphrase in the plugin settings*, the settings tab offers an **Unlock** button, and no sync runs. Entering the passphrase there decrypts the token and stores the passphrase in the keychain, after which the device behaves like the desktop. A login written by a version before 1.2.0 is plain text; it keeps working and is encrypted the moment a passphrase is set.
 
 ### Sync (every device)
 
@@ -203,7 +217,7 @@ Existence rules: a note without an id gets a task; a task without a note is impo
 {
   "clientId": "…apps.googleusercontent.com",
   "clientSecret": "…",
-  "refreshToken": "…",
+  "refreshToken": "enc1.<salt>.<iv>.<ciphertext>",
   "account": "user@gmail.com",
   "calendars": { "<calendarId>": { "name": "Work", "color": "#D85B8B", "enabled": true } },
   "mirror": true,
@@ -214,6 +228,14 @@ Existence rules: a note without an id gets a task; a task without a note is impo
   "weekStart": "monday"
 }
 ```
+
+`refreshToken` is the refresh token encrypted with AES-256-GCM under a key derived from the sync passphrase by PBKDF2-HMAC-SHA256 (600,000 iterations, 16-byte salt, 12-byte IV, all base64url). A fresh salt and IV are used every time it is written. Google treats the client secret of a desktop app as public, so `clientId` and `clientSecret` stay plain.
+
+Obsidian keychain (per vault, per device, via `app.secretStorage`):
+
+| Id | Value |
+| --- | --- |
+| `google-cal-sync-passphrase` | The sync passphrase. Written when the user sets or unlocks it; never written to the vault |
 
 localStorage (per device):
 
@@ -232,6 +254,9 @@ Task note frontmatter the plugin reads and writes: `type`, `title`, `status`, `d
 | Notes are the source of truth for tasks; Google is a mirror | Google Tasks as master | Tasks API has two states and no custom fields; the note's `status` column and body cannot live there |
 | Login on desktop only; phones reuse the refresh token through vault sync | Relay server; static HTTPS bridge page with `obsidian://` handoff | No infrastructure to run, no public redirect URI to register, nothing to keep alive. A refresh token does not expire from age alone |
 | `data.json` for the login, localStorage for the cache | Everything in `data.json`; SecretStorage | Vault sync must carry the token; it must not carry a file that changes every five minutes. SecretStorage is per device and would strand phones |
+| The refresh token in `data.json` is encrypted with a user passphrase; the passphrase lives in each device's keychain | Plain text (1.0 and 1.1); SecretStorage only; a static HTTPS bridge page so that every device logs in for itself | Plain text left the token in every sync copy and backup. SecretStorage alone never syncs. A bridge needs a public redirect URI and a Web client. A passphrase-derived key gives end-to-end encryption between the user's own devices with no infrastructure, and the keychain makes it a one-time entry per device |
+| Scopes `calendar.calendarlist.readonly` + `calendar.events` + `tasks` | The full `calendar` scope | Least privilege: the plugin only lists calendars and reads and writes events, so a leaked token cannot share, delete or reconfigure a calendar |
+| The loopback server ignores requests without this login's `state` | Reject the login on the first mismatch | A stray or hostile local request must not be able to cancel a login; the real redirect or the timeout ends it |
 | FullCalendar 6, bundled, imported on first block | Hand-drawn grid; FullCalendar 7 | Month/week/day, drag, resize and touch for free under MIT. v7 needs `temporal-polyfill`, separate CSS and renamed variables; v6 injects its CSS and its `--fc-*` variables map cleanly to Obsidian's |
 | Conflict tie-break by file mtime, not frontmatter `modified` | Date-only comparison | A note created today and ticked on the phone today would otherwise be reverted by the note |
 | `If-Match` on every patch | Blind patch | A 412 costs one extra GET and avoids overwriting an edit made in Google Calendar between syncs |
@@ -250,6 +275,7 @@ Task note frontmatter the plugin reads and writes: `type`, `title`, `status`, `d
 | API budget | ≤ 1 list call per calendar and per task list per sync | syncToken; tasks.list per project; writes only on change; 30 s throttle; single in-flight sync | e2e "request budget" step |
 | Data safety | Never delete what the user did not delete | Deletions only from explicit UI actions or a note that existed in the previous index and is gone; cache untouched on failed requests | e2e steps for 412, 410, deletions |
 | Theme fit | No literal colours | `--fc-*` mapped to Obsidian CSS variables; only Google's calendar colours are inline | `styles.css` |
+| Secrets at rest | No plain-text refresh token in any synced file | AES-256-GCM under a PBKDF2 key from the sync passphrase; passphrase in the OS-encrypted keychain; decrypted token only in memory; least-privilege scopes | Unit tests: round trip, wrong passphrase, two-device unlock; e2e: login refuses to start without a passphrase |
 
 ## Testing
 

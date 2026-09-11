@@ -3,7 +3,8 @@
 ## Project overview
 
 - Google Calendar in a `gcal` code block (FullCalendar v6, bundled, lazy-loaded) with create/edit/drag/delete, plus task notes mirrored to Google Tasks.
-- Entry point: `src/main.ts` → `main.js`. Modules: `auth.ts` (loopback OAuth + PKCE, desktop only), `google.ts` (requestUrl wrapper), `calendar.ts` (events, syncToken), `tasks.ts` (mirroring rules), `cache.ts` (per-device localStorage), `view.ts` (code block), `modal.ts`, `settings.ts`.
+- Entry point: `src/main.ts` → `main.js`. Modules: `auth.ts` (loopback OAuth + PKCE, desktop only; seals the refresh token with the sync passphrase and unlocks it on every device), `crypto.ts` (WebCrypto: PKCE hash, PBKDF2 → AES-GCM), `google.ts` (requestUrl wrapper), `calendar.ts` (events, syncToken), `tasks.ts` (mirroring rules), `cache.ts` (per-device localStorage), `view.ts` (code block), `modal.ts`, `settings.ts`.
+- Secrets: the refresh token is never written in plain text (`enc1.…` in `data.json`); the passphrase lives only in `app.secretStorage`. Keep it that way in any change to `auth.ts` or `settings.ts`.
 - Events: Google is the source of truth, cached per device. Tasks: the note is the source of truth; field owners and conflict rules live in `tasks.ts`.
 - Release artifacts: `main.js`, `manifest.json`, `styles.css`. Run `npm run build && npm run lint && npm test` before committing.
 

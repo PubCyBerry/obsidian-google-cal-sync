@@ -4,6 +4,16 @@ All notable changes to this plugin are recorded here. The format follows [Keep a
 
 ## [Unreleased]
 
+### Added
+
+- **Sync passphrase** setting. The refresh token is now written to `data.json` encrypted with a key derived from the passphrase (PBKDF2-SHA256, AES-256-GCM), so vault sync carries only ciphertext. Each device keeps the passphrase in Obsidian's keychain and unlocks the login once; a device without it shows *Enter the sync passphrase* instead of the calendar and syncs nothing.
+- The login is required to have a passphrase before it starts. A login stored by an earlier version keeps working in plain text and is encrypted as soon as a passphrase is set.
+
+### Changed
+
+- Narrower Google permissions: `calendar.calendarlist.readonly` and `calendar.events` instead of the full `calendar` scope. A leaked token can no longer share, delete or reconfigure calendars. Existing users log in once more so the stored token carries the new scopes.
+- The loopback login page ignores requests that do not carry this login's `state` (answered 404) instead of cancelling the login, and Google's error code is sanitised before it is shown.
+
 ## [1.1.0] - 2026-09-11
 
 ### Added

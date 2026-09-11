@@ -9,7 +9,7 @@ A first-time walkthrough from an empty Google Cloud project to a calendar in a n
 | Obsidian 1.13.7 or later on a desktop (Windows, macOS, Linux) | The login opens a local web server, which only the desktop app can run |
 | A Google account with the calendars you want to see | Personal Gmail or Workspace both work |
 | Access to [Google Cloud Console](https://console.cloud.google.com/) with that account | You create your own OAuth client, so no third party ever sees your tokens |
-| Optional: a phone with Obsidian and a vault sync that copies the `.obsidian` folder | Obsidian Sync, iCloud, Syncthing, Google Drive and similar all work; the login travels inside `data.json` |
+| Optional: a phone with Obsidian and a vault sync that copies the `.obsidian` folder | Obsidian Sync, iCloud, Syncthing, Google Drive and similar all work; the login travels inside `data.json`, encrypted with a passphrase you choose |
 
 ## 1. Google Cloud: enable the two APIs
 
@@ -25,14 +25,17 @@ Google calls this **Google Auth Platform** (older UI: OAuth consent screen).
 
 1. [Branding](https://console.cloud.google.com/auth/branding): app name (anything, e.g. `Google Calendar Tasks Sync`), support email, developer contact.
 2. [Audience](https://console.cloud.google.com/auth/audience): choose **External** and add your own Gmail address under **Test users**. Workspace accounts may choose **Internal** and skip test users.
-3. [Data access](https://console.cloud.google.com/auth/scopes): add these two scopes and save.
+3. [Data access](https://console.cloud.google.com/auth/scopes): add these three scopes and save.
 
    ```text
-   https://www.googleapis.com/auth/calendar
+   https://www.googleapis.com/auth/calendar.calendarlist.readonly
+   https://www.googleapis.com/auth/calendar.events
    https://www.googleapis.com/auth/tasks
    ```
 
-Done when your address is a test user and the two scopes are listed.
+   The plugin asks for exactly these: the list of your calendars, read and write access to events, and tasks. It never asks for the full `calendar` scope, so it cannot share, delete or reconfigure a calendar.
+
+Done when your address is a test user and the three scopes are listed.
 
 ## 3. Google Cloud: the Desktop app client
 
@@ -51,11 +54,12 @@ Pick one:
 
 ## 5. Log in (desktop)
 
-1. Settings → **Google Calendar Tasks Sync**. Paste the Client ID and Client secret. The *Log in to Google* button enables once both are filled.
-2. Click **Log in to Google**. Your default browser opens Google's sign-in.
-3. Choose the account. Because the app is unverified you will see *Google hasn't verified this app*: click **Advanced**, then **Go to <your app name> (unsafe)**. This is your own app; the warning is about Google's review, not about safety.
-4. Tick both permissions (calendar and tasks) and continue.
-5. The browser lands on a plain page saying *Connected. You can close this window and return to Obsidian.* Back in Obsidian the settings tab shows *Connected as <your email>* and the list of your calendars with toggles.
+1. Settings → **Google Calendar Tasks Sync**. Paste the Client ID and Client secret.
+2. Type a **Sync passphrase** and press **Set**. It encrypts the login before it is written to `data.json`, so your vault sync carries only ciphertext; you will type the same passphrase once on each other device. It is kept in Obsidian's keychain on this device (Settings → Keychain), so you are not asked again here. Pick something you can type on a phone. The *Log in to Google* button enables once all three fields are filled.
+3. Click **Log in to Google**. Your default browser opens Google's sign-in.
+4. Choose the account. Because the app is unverified you will see *Google hasn't verified this app*: click **Advanced**, then **Go to <your app name> (unsafe)**. This is your own app; the warning is about Google's review, not about safety.
+5. Tick all permissions (calendar list, events and tasks) and continue.
+6. The browser lands on a plain page saying *Connected. You can close this window and return to Obsidian.* Back in Obsidian the settings tab shows *Connected as <your email>* and the list of your calendars with toggles.
 
 If nothing comes back within two minutes the plugin gives up; just click the button again.
 
@@ -114,16 +118,20 @@ Rules worth knowing: deleting a note deletes the Google task; deleting the Googl
 ## 9. Phone
 
 1. Wait until your vault sync has copied `.obsidian/plugins/google-cal-sync/` including `data.json` to the phone. On desktop, check the file's modified time and make sure a sync ran after it.
-2. Enable the plugin on the phone (Settings → Community plugins). There is no login screen; the settings tab says *Connected as …*.
-3. Open the note with the `gcal` block. The month grid keeps a readable width and scrolls sideways. Long-press an event to drag it.
+2. Enable the plugin on the phone (Settings → Community plugins). There is no login screen; the settings tab says *Connected as …* and asks for the sync passphrase.
+3. Settings → **Google Calendar Tasks Sync** → **Sync passphrase**: type the passphrase you set on desktop and press **Unlock**. The phone keeps it in its own keychain, so this happens once per device.
+4. Open the note with the `gcal` block. The month grid keeps a readable width and scrolls sideways. Long-press an event to drag it.
 
-If the block says *Log in on desktop*, `data.json` has not arrived yet.
+If the block says *Log in on desktop*, `data.json` has not arrived yet. If it says *Enter the sync passphrase*, it has arrived and is waiting for step 3.
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
-| Login button stays disabled | Client ID or secret empty | Paste both values; whitespace is trimmed automatically |
+| Login button stays disabled | Client ID, secret or sync passphrase empty | Paste both values and set a passphrase; whitespace is trimmed automatically |
+| *Enter the sync passphrase* instead of the calendar | This device has not unlocked the synced login yet | Settings → Sync passphrase → type it → **Unlock** |
+| *Wrong sync passphrase* | Not the passphrase set on desktop, or the desktop changed it since | Use the current one. Forgotten? On desktop, **Log out**, set a new passphrase, **Log in to Google** again, then unlock every other device once more |
+| *Your login is stored in plain text by an earlier version* | `data.json` was written by 1.0 or 1.1 | Set a passphrase on desktop; the stored login is encrypted on the spot. Other devices then need the passphrase once |
 | `403 access_denied` in the browser | App is in Testing and this account is not a test user | Add the account under Audience → Test users |
 | `redirect_uri_mismatch` | A Web application client was used | Create a Desktop app client and use its values |
 | Browser never returns to Obsidian | Firewall blocked the local port, or the browser blocked the popup | Click *Log in to Google* again; a new port is chosen each time |
@@ -139,9 +147,11 @@ If the block says *Log in on desktop*, `data.json` has not arrived yet.
 
 | Data | Location | Leaves the device? |
 | --- | --- | --- |
-| Client ID, client secret, refresh token, calendar toggles, list ids | `.obsidian/plugins/google-cal-sync/data.json` | Only through your own vault sync |
-| Access token | Memory | No |
+| Client ID, client secret, calendar toggles, list ids | `.obsidian/plugins/google-cal-sync/data.json`, plain text | Only through your own vault sync. Google treats a desktop app's client secret as public |
+| Refresh token | Same file, encrypted with a key derived from your sync passphrase (PBKDF2-SHA256, AES-256-GCM) | Only as ciphertext, through your own vault sync |
+| Sync passphrase | Obsidian's keychain on each device (Settings → Keychain). Encrypted by the OS on Windows, macOS, iOS and Android; on Linux without a keyring Obsidian warns that it is stored unencrypted | No |
+| Access token and the decrypted refresh token | Memory | No |
 | Event cache and sync tokens | Obsidian's per-vault localStorage on each device | No |
 | Task state | The note's frontmatter (`status`, `due`, `google_task_id`, `title`) | Through your vault sync, like any note |
 
-To disconnect completely: **Log out** (revokes the token at Google and clears the cache), then remove the app under [Third-party apps & services](https://myaccount.google.com/connections) in your Google account.
+To disconnect completely: **Log out** (revokes the token at Google and clears the cache), then remove the app under [Third-party apps & services](https://myaccount.google.com/connections) in your Google account. Removing the app there also invalidates the token immediately if you ever suspect that a copy of `data.json` and the passphrase leaked together. The passphrase stays in the keychain after a logout so that the next login can reuse it; delete it under Settings → Keychain if you want it gone.
