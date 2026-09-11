@@ -21,6 +21,7 @@ export interface GCalSettings {
 	projectsFolder: string;
 	taskLists: Record<string, string>;
 	showCompletedTasks: boolean;
+	hideMidnightTime: boolean;
 	syncIntervalMinutes: number;
 	weekStart: Weekday;
 }
@@ -35,6 +36,7 @@ export const DEFAULT_SETTINGS: GCalSettings = {
 	projectsFolder: '10-projects',
 	taskLists: {},
 	showCompletedTasks: false,
+	hideMidnightTime: true,
 	syncIntervalMinutes: 5,
 	weekStart: 'monday',
 };
@@ -46,7 +48,7 @@ export function loadSettings(saved: unknown): GCalSettings {
 	for (const k of ['clientId', 'clientSecret', 'refreshToken', 'account', 'projectsFolder'] as const) {
 		if (typeof o[k] === 'string') s[k] = o[k];
 	}
-	for (const k of ['mirror', 'showCompletedTasks'] as const) {
+	for (const k of ['mirror', 'showCompletedTasks', 'hideMidnightTime'] as const) {
 		if (typeof o[k] === 'boolean') s[k] = o[k];
 	}
 	if (typeof o.syncIntervalMinutes === 'number' && o.syncIntervalMinutes >= 1) s.syncIntervalMinutes = o.syncIntervalMinutes;
@@ -167,13 +169,24 @@ export class GCalSettingTab extends PluginSettingTab {
 			},
 			{
 				type: 'group',
-				heading: 'Sync',
+				heading: 'Display',
 				items: [
-					{ name: 'Sync interval', desc: 'Minutes between background syncs.', control: { type: 'number', key: 'syncIntervalMinutes', min: 1, step: 1 } },
 					{
 						name: 'Week starts on',
 						control: { type: 'dropdown', key: 'weekStart', options: Object.fromEntries(WEEKDAYS.map((d) => [d, d.charAt(0).toUpperCase() + d.slice(1)])) },
 					},
+					{
+						name: 'Hide midnight start times',
+						desc: 'Events that start at 00:00 are drawn without a time, the way Google Calendar shows them.',
+						control: { type: 'toggle', key: 'hideMidnightTime' },
+					},
+				],
+			},
+			{
+				type: 'group',
+				heading: 'Sync',
+				items: [
+					{ name: 'Sync interval', desc: 'Minutes between background syncs.', control: { type: 'number', key: 'syncIntervalMinutes', min: 1, step: 1 } },
 					{
 						name: 'Last sync',
 						render: (setting) => {

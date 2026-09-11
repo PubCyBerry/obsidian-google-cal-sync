@@ -80,6 +80,8 @@ Try it:
 
 Options you can set in the block: `view` (`month`, `week`, `day`), `height` (CSS length or `auto`), `calendars` (list of calendar ids to pin), `tasks` (`false` hides task notes).
 
+Prefer a pane instead of a note? Click the calendar icon in the left ribbon (or run **Open calendar view**). It opens in the right sidebar; drag its tab into the main area to make it a full tab.
+
 ## 7. Publish the consent screen
 
 While the consent screen is in *Testing*, Google expires refresh tokens after 7 days and you would have to log in weekly.

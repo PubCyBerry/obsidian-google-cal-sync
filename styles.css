@@ -62,8 +62,20 @@
 
 .gcal .fc .fc-event {
 	border-left-width: 3px;
+	border-radius: var(--radius-s);
 	cursor: pointer;
 	font-size: var(--font-ui-smaller);
+}
+
+/* Multi-day bars keep square edges where they continue into the next or previous week. */
+.gcal .fc .fc-h-event:not(.fc-event-start) {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+}
+
+.gcal .fc .fc-h-event:not(.fc-event-end) {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
 }
 
 .gcal .fc .fc-daygrid-event {
@@ -82,6 +94,10 @@
 .gcal .fc a {
 	color: inherit;
 	text-decoration: none;
+}
+
+.gcal .fc .fc-daygrid-day-number {
+	white-space: nowrap;
 }
 
 /* Tasks: dashed, with a checkbox. */
@@ -208,6 +224,11 @@
 .gcal-modal textarea {
 	width: 100%;
 	min-height: 4em;
+}
+
+/* The calendar as its own pane (sidebar or tab). */
+.gcal-view {
+	padding: var(--size-4-2);
 }
 
 /* Mobile: the month grid keeps a readable width and the block scrolls sideways. */

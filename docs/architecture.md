@@ -72,7 +72,9 @@ C4Component
         Component(calendar, "calendar.ts · CalendarSync", "Domain", "calendarList; events.list full or incremental; 410 → full; insert/patch(If-Match)/delete; keeps the cache current")
         Component(tasks, "tasks.ts · TaskMirror", "Domain", "Collects task notes, pairs them with Google tasks by id, applies field-owner rules, imports, deletes, moves")
         Component(cache, "cache.ts · Cache", "Storage", "Typed access to localStorage entries")
-        Component(view, "view.ts · GCalBlock", "MarkdownRenderChild", "Parses block options, renders toolbar and FullCalendar, maps cache+notes to events, handles select/click/drag")
+        Component(view, "view.ts · GCalBlock", "MarkdownRenderChild", "Parses block options, renders toolbar and FullCalendar, maps cache+notes to events, handles select/click/drag, redraws when the block becomes visible")
+        Component(pane, "pane.ts · GCalView", "ItemView", "The same block inside a workspace leaf (sidebar or tab)")
+        Component(colors, "colors.ts", "Table", "Classic → modern Google calendar palette")
         Component(fc, "fc.ts", "Lazy module", "Re-exports FullCalendar core, dayGrid, timeGrid, interaction, locales")
         Component(modal, "modal.ts · EventModal", "Modal", "Create/edit/delete one event; validates title and range")
     }
@@ -83,6 +85,9 @@ C4Component
     Rel(plugin, tasks, "sync")
     Rel(plugin, cache, "")
     Rel(plugin, view, "registers block")
+    Rel(plugin, pane, "registers view")
+    Rel(pane, view, "embeds")
+    Rel(plugin, colors, "on calendarList refresh")
     Rel(view, fc, "await import()")
     Rel(view, modal, "opens")
     Rel(view, calendar, "patch on drag/resize")
@@ -100,7 +105,7 @@ C4Component
 | `google.ts` | `requestUrl` | nothing |
 | `calendar.ts`, `cache.ts` | `App.loadLocalStorage/saveLocalStorage` | nothing |
 | `tasks.ts` | `Vault`, `MetadataCache`, `FileManager.processFrontMatter/renameFile` | nothing |
-| `view.ts`, `modal.ts` | `MarkdownRenderChild`, `Modal`, `Setting`, `moment`, `getLanguage`, `parseYaml` | nothing |
+| `view.ts`, `modal.ts`, `pane.ts` | `MarkdownRenderChild`, `ItemView`, `Modal`, `Setting`, `getLanguage`, `parseYaml` | nothing |
 
 Everything except the loopback server therefore runs unchanged on mobile, which is what lets `isDesktopOnly` be `false`.
 
@@ -233,6 +238,8 @@ Task note frontmatter the plugin reads and writes: `type`, `title`, `status`, `d
 | One `select` handler for click and drag-select | `dateClick` + `select` | With `selectable`, a single click fires both; two modals opened |
 | Incremental sync with `syncToken`, first sync bounded to −3/+6 months | Time-window every time | One request per calendar per sync regardless of size; Google's own delta protocol handles deletions |
 | Declarative settings tab (`getSettingDefinitions`) | Imperative `display()` | Settings become searchable in Obsidian 1.13 and the lint recommends it |
+| Map calendar colours from the classic to the modern palette; refresh the list hourly | Use `backgroundColor` as returned | The API still reports the 2011 palette (`#9fe1e7`) while every Google app shows the modern one (`#039be5`); users expect the block to match their apps |
+| Day cells overflow visible; redraw on becoming visible | Trust FullCalendar's defaults | Obsidian's reading view clips `td`, and FullCalendar measures columns when it draws, so multi-day bars otherwise collapse to one cell |
 
 ## Quality attributes and how they are met
 

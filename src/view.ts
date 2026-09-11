@@ -167,6 +167,12 @@ export class GCalBlock extends MarkdownRenderChild {
 			eventDrop: (info) => void this.onMove(info),
 			eventResize: (info) => void this.onMove(info),
 			eventContent: (arg) => this.taskContent(arg),
+			eventDidMount: (arg) => {
+				const start = arg.event.start;
+				if (this.plugin.settings.hideMidnightTime && !arg.event.allDay && start && start.getHours() === 0 && start.getMinutes() === 0) {
+					arg.el.querySelector('.fc-event-time')?.remove();
+				}
+			},
 		});
 		this.calendar.render();
 		if (this.hidden) this.dirty = true;

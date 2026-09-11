@@ -146,3 +146,10 @@ test('date helpers: date-only parsing stays local, day arithmetic crosses months
 	assert.equal(fromNow(Date.now() - 30_000), 'just now');
 	assert.equal(fromNow(Date.now() - 86_400_000), '1 day ago');
 });
+
+test('calendar colours map from the classic API palette to the modern one', async () => {
+	const { modernColor } = await import('../src/colors');
+	assert.equal(modernColor('#9fe1e7'), '#039be5');
+	assert.equal(modernColor('#92E1C0'), '#33b679');
+	assert.equal(modernColor('#123456'), '#123456', 'custom colours pass through');
+});

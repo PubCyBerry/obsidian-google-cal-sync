@@ -2,6 +2,8 @@ import { Notice, Platform, Plugin, debounce } from 'obsidian';
 import { Auth, AuthError } from './auth';
 import { Cache } from './cache';
 import { CACHE_WARN_COUNT, CalendarSync, listCalendars } from './calendar';
+import { modernColor } from './colors';
+import { GCalView, VIEW_TYPE } from './pane';
 import { GoogleClient } from './google';
 import { DEFAULT_SETTINGS, GCalSettingTab, errorMessage, loadSettings, type GCalSettings } from './settings';
 import { TaskMirror, collectTaskNotes, type TaskNote } from './tasks';
@@ -14,6 +16,7 @@ export interface SyncStatus {
 }
 
 const MIN_SYNC_GAP_MS = 30_000;
+const LIST_REFRESH_MS = 3_600_000;
 
 export default class GCalSync extends Plugin {
 	settings: GCalSettings = { ...DEFAULT_SETTINGS };
@@ -28,6 +31,7 @@ export default class GCalSync extends Plugin {
 	private timer = 0;
 	private running: Promise<void> | null = null;
 	private lastStart = 0;
+	private lastListRefresh = 0;
 	private noticedError = '';
 
 	async onload(): Promise<void> {
@@ -40,6 +44,9 @@ export default class GCalSync extends Plugin {
 		this.status.lastSyncAt = this.lastCachedSync();
 
 		this.addSettingTab(new GCalSettingTab(this.app, this));
+		this.registerView(VIEW_TYPE, (leaf) => new GCalView(leaf, this));
+		this.addRibbonIcon('calendar', 'Open Google Calendar', () => void this.openView());
+		this.addCommand({ id: 'open-view', name: 'Open calendar view', callback: () => void this.openView() });
 		this.registerMarkdownCodeBlockProcessor('gcal', (source, el, ctx) => {
 			const opts = parseOptions(source);
 			if (typeof opts === 'string') {
@@ -135,6 +142,15 @@ export default class GCalSync extends Plugin {
 		);
 	}
 
+	/** Reveals the calendar pane, opening it in the right sidebar the first time. */
+	async openView(): Promise<void> {
+		const existing = this.app.workspace.getLeavesOfType(VIEW_TYPE)[0];
+		const leaf = existing ?? this.app.workspace.getRightLeaf(false);
+		if (!leaf) return;
+		if (!existing) await leaf.setViewState({ type: VIEW_TYPE, active: true });
+		await this.app.workspace.revealLeaf(leaf);
+	}
+
 	taskNotes(): TaskNote[] {
 		return collectTaskNotes(this.app, this.settings.projectsFolder);
 	}
@@ -154,14 +170,16 @@ export default class GCalSync extends Plugin {
 		}
 	}
 
-	/** Loads calendarList into settings (keeping existing toggles) and records the account from the primary calendar. */
+	/** Loads calendarList into settings (keeping toggles, mapping colours to Google's modern palette); saves only on change. */
 	async refreshCalendarList(): Promise<void> {
 		const list = await listCalendars(this.google);
 		const next: GCalSettings['calendars'] = {};
 		for (const c of list) {
-			next[c.id] = { name: c.name, color: c.color, enabled: this.settings.calendars[c.id]?.enabled ?? true };
+			next[c.id] = { name: c.name, color: modernColor(c.color), enabled: this.settings.calendars[c.id]?.enabled ?? true };
 			if (c.primary) this.settings.account = c.id;
 		}
+		this.lastListRefresh = Date.now();
+		if (JSON.stringify(next) === JSON.stringify(this.settings.calendars)) return;
 		this.settings.calendars = next;
 		await this.saveSettings();
 		this.notifyChanged();
@@ -193,7 +211,7 @@ export default class GCalSync extends Plugin {
 		let events = 0;
 		let tasks = 0;
 		try {
-			if (Object.keys(this.settings.calendars).length === 0) await this.refreshCalendarList();
+			if (Object.keys(this.settings.calendars).length === 0 || Date.now() - this.lastListRefresh > LIST_REFRESH_MS) await this.refreshCalendarList();
 			for (const [id, cal] of Object.entries(this.settings.calendars)) {
 				if (!cal.enabled) continue;
 				const state = await this.calendars.sync(id);

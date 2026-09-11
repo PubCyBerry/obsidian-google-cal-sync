@@ -5,6 +5,7 @@ A `gcal` code block that turns into your **Google Calendar** (all calendars, mon
 - One code block, every calendar, each in its own Google colour.
 - Create, edit, move, resize and delete events. Changes go straight to Google; Google is the source of truth for events.
 - Task notes (`type: Task` frontmatter) inside project folders are mirrored to a Google Tasks list per project. Title, due date and completion sync both ways; Obsidian is the source of truth for tasks.
+- Also available as its own pane: the ribbon icon or the **Open calendar view** command opens it in the right sidebar, and you can drag it into a tab.
 - Log in once on desktop; phones and tablets reuse that login through your vault sync. No login screen on mobile.
 - Offline: the last synced state is drawn from a per-device cache.
 
@@ -63,9 +64,13 @@ google_task_id:       # filled by the plugin
 
 Turn mirroring off in settings and the Google Tasks API is never called.
 
+### Display
+
+Calendar colours follow the Google Calendar apps (the API reports the classic palette; the plugin maps it to the modern one you see on the web and phone) and are refreshed once an hour. Events that start at 00:00 are drawn without a time, like Google does; turn **Hide midnight start times** off in settings to show it.
+
 ### Commands
 
-`Log in to Google` (desktop only), `Log out`, `Sync now`, `Clear cache`.
+`Log in to Google` (desktop only), `Log out`, `Sync now`, `Clear cache`, `Open calendar view`.
 
 ## Mobile
 
