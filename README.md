@@ -98,4 +98,4 @@ Symlink or copy the repository folder to `<vault>/.obsidian/plugins/google-cal-s
 
 ## License
 
-MIT. See [LICENSE](LICENSE) for the bundled FullCalendar notice.
+MIT. FullCalendar (MIT) is bundled; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

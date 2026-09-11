@@ -104,10 +104,10 @@ export class Auth {
 	}
 
 	private waitForCode(clientId: string, challenge: string, state: string): Promise<{ code: string; redirectUri: string }> {
-		if (Platform.isDesktop) {
-			// Node's http only exists on desktop; esbuild leaves this require untouched (builtins are external).
-			// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- Electron's renderer provides require on desktop
-			const http = require('http') as typeof import('http');
+		// Node's http exists only on desktop, where Electron exposes require on window. Never referenced on mobile.
+		const nodeRequire = (window as unknown as { require?: (id: string) => unknown }).require;
+		if (Platform.isDesktop && nodeRequire) {
+			const http = nodeRequire('http') as typeof import('http');
 			return new Promise((resolve, reject) => {
 				let done = false;
 				const finish = (err: Error | null, code?: string, redirectUri?: string) => {

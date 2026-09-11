@@ -1,7 +1,8 @@
-import { MarkdownRenderChild, Notice, Platform, getLanguage, moment, parseYaml } from 'obsidian';
+import { MarkdownRenderChild, Notice, Platform, getLanguage, parseYaml } from 'obsidian';
 import type { Calendar, EventInput as FcEvent, EventClickArg, EventDropArg, EventContentArg } from '@fullcalendar/core';
 import type { EventResizeDoneArg } from '@fullcalendar/interaction';
 import type { CachedEvent } from './cache';
+import { addDays, fmtLocal, fromNow } from './dates';
 import type GCalSync from './main';
 import { EventModal } from './modal';
 import { errorMessage, WEEKDAYS } from './settings';
@@ -185,7 +186,7 @@ export class GCalBlock extends MarkdownRenderChild {
 			this.pill.onclick = () => new Notice(st.lastError);
 		} else if (st.lastSyncAt && Date.now() - st.lastSyncAt > 3_600_000) {
 			this.pill.addClass('is-stale');
-			this.pill.setText(`Synced ${moment(st.lastSyncAt).fromNow()}`);
+			this.pill.setText(`Synced ${fromNow(st.lastSyncAt)}`);
 		} else {
 			this.pill.setText('');
 		}
@@ -273,7 +274,7 @@ export class GCalBlock extends MarkdownRenderChild {
 		const ev = kind.ev;
 		const allDay = info.event.allDay;
 		const start = info.event.startStr;
-		const end = info.event.endStr || (allDay ? moment(info.event.start).add(1, 'day').format('YYYY-MM-DD') : moment(info.event.start).add(1, 'hour').format());
+		const end = info.event.endStr || (allDay ? addDays(start, 1) : fmtLocal(new Date((info.event.start?.getTime() ?? Date.now()) + 3_600_000)));
 		try {
 			await this.plugin.calendars.patch(ev.calendarId, ev.id, ev.etag, { start, end, allDay });
 			this.plugin.notifyChanged();

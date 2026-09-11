@@ -1,6 +1,7 @@
-import { Modal, Notice, Setting, moment } from 'obsidian';
+import { Modal, Notice, Setting } from 'obsidian';
 import type { CachedEvent } from './cache';
 import type { EventInput } from './calendar';
+import { addDays, fmtDate, fmtLocal, fmtTime, parseDate, parseLocal } from './dates';
 import type GCalSync from './main';
 import { errorMessage } from './settings';
 
@@ -12,9 +13,6 @@ export interface EventModalParams {
 	end?: string;
 	allDay?: boolean;
 }
-
-const DATE = 'YYYY-MM-DD';
-const TIME = 'HH:mm';
 
 /** Create/edit/delete one Google Calendar event. Tasks never open this; they open their note. */
 export class EventModal extends Modal {
@@ -41,18 +39,18 @@ export class EventModal extends Modal {
 		this.allDay = ev?.allDay ?? params.allDay ?? false;
 		this.title = ev?.title ?? '';
 		this.description = ev?.description ?? '';
-		const start = ev?.start ?? params.start ?? moment().format();
+		const start = ev?.start ?? params.start ?? fmtLocal(new Date());
 		const end = ev?.end ?? params.end ?? '';
-		this.startDate = moment(start).format(DATE);
+		this.startDate = fmtDate(parseDate(start));
 		if (this.allDay) {
-			this.endDate = end ? moment(end).subtract(1, 'day').format(DATE) : this.startDate;
-			if (moment(this.endDate).isBefore(this.startDate)) this.endDate = this.startDate;
+			this.endDate = end ? addDays(fmtDate(parseDate(end)), -1) : this.startDate;
+			if (this.endDate < this.startDate) this.endDate = this.startDate;
 		} else {
-			const s = moment(start);
-			const e = end ? moment(end) : s.clone().add(1, 'hour');
-			this.startTime = s.format(TIME);
-			this.endDate = e.format(DATE);
-			this.endTime = e.format(TIME);
+			const s = parseDate(start);
+			const e = end ? parseDate(end) : new Date(s.getTime() + 3_600_000);
+			this.startTime = fmtTime(s);
+			this.endDate = fmtDate(e);
+			this.endTime = fmtTime(e);
 		}
 	}
 
@@ -143,13 +141,13 @@ export class EventModal extends Modal {
 	private input(): EventInput | null {
 		if (!this.title.trim() || !this.calendarId || !this.startDate || !this.endDate) return null;
 		if (this.allDay) {
-			if (moment(this.endDate).isBefore(this.startDate)) return null;
-			return { title: this.title.trim(), allDay: true, start: this.startDate, end: moment(this.endDate).add(1, 'day').format(DATE), description: this.description };
+			if (this.endDate < this.startDate) return null;
+			return { title: this.title.trim(), allDay: true, start: this.startDate, end: addDays(this.endDate, 1), description: this.description };
 		}
-		const s = moment(`${this.startDate}T${this.startTime || '00:00'}`);
-		const e = moment(`${this.endDate}T${this.endTime || '00:00'}`);
-		if (!s.isValid() || !e.isValid() || e.isBefore(s)) return null;
-		return { title: this.title.trim(), allDay: false, start: s.format(), end: e.format(), description: this.description };
+		const s = parseLocal(this.startDate, this.startTime || '00:00');
+		const e = parseLocal(this.endDate, this.endTime || '00:00');
+		if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e < s) return null;
+		return { title: this.title.trim(), allDay: false, start: fmtLocal(s), end: fmtLocal(e), description: this.description };
 	}
 
 	private validate(): void {

@@ -132,3 +132,17 @@ test('CalendarSync.patch: 412 refreshes the cache and rethrows', async () => {
 	assert.equal(cache.calendar('cal')?.events.e?.title, 'fresh');
 	assert.equal(cache.calendar('cal')?.events.e?.etag, '"2"');
 });
+
+test('date helpers: date-only parsing stays local, day arithmetic crosses months, offsets are explicit', async () => {
+	const { addDays, fmtDate, fmtLocal, fmtTime, fromNow, parseDate, parseLocal } = await import('../src/dates');
+	assert.equal(fmtDate(parseDate('2026-09-23')), '2026-09-23', 'no UTC shift for date-only strings');
+	assert.equal(addDays('2026-09-30', 1), '2026-10-01');
+	assert.equal(addDays('2026-01-01', -1), '2025-12-31');
+	const d = parseLocal('2026-09-10', '10:05');
+	assert.equal(fmtTime(d), '10:05');
+	assert.match(fmtLocal(d), /^2026-09-10T10:05:00[+-]\d{2}:\d{2}$/);
+	assert.ok(Number.isNaN(parseLocal('2026-09-10', '').getTime()));
+	assert.equal(fromNow(Date.now() - 2 * 3_600_000), '2 hours ago');
+	assert.equal(fromNow(Date.now() - 30_000), 'just now');
+	assert.equal(fromNow(Date.now() - 86_400_000), '1 day ago');
+});

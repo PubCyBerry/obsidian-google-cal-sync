@@ -1,4 +1,5 @@
-import { App, Notice, Platform, PluginSettingTab, Setting, moment, type SettingDefinitionItem } from 'obsidian';
+import { App, Notice, Platform, PluginSettingTab, Setting, type SettingDefinitionItem } from 'obsidian';
+import { fmtDateTime } from './dates';
 import type GCalSync from './main';
 
 export interface CalendarInfo {
@@ -177,7 +178,7 @@ export class GCalSettingTab extends PluginSettingTab {
 						name: 'Last sync',
 						render: (setting) => {
 							const st = this.plugin.status;
-							setting.setDesc(st.lastError ? `Failed: ${st.lastError}` : st.lastSyncAt ? moment(st.lastSyncAt).format('YYYY-MM-DD HH:mm') : 'Never');
+							setting.setDesc(st.lastError ? `Failed: ${st.lastError}` : st.lastSyncAt ? fmtDateTime(st.lastSyncAt) : 'Never');
 						},
 					},
 				],
