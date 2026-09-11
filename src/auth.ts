@@ -26,6 +26,22 @@ async function pkceChallenge(verifier: string): Promise<string> {
 	return base64url(new Uint8Array(digest));
 }
 
+/** The slice of Node's http module the loopback login uses, typed here so no Node typings are needed. */
+interface LoopbackResponse {
+	writeHead(status: number, headers?: Record<string, string>): LoopbackResponse;
+	end(body?: string): void;
+}
+interface LoopbackServer {
+	listen(port: number, host: string, cb: () => void): void;
+	address(): { port: number } | string | null;
+	close(): void;
+	closeAllConnections(): void;
+	once(event: 'error', cb: (e: Error) => void): void;
+}
+interface HttpModule {
+	createServer(handler: (req: { url?: string }, res: LoopbackResponse) => void): LoopbackServer;
+}
+
 interface TokenResponse {
 	access_token?: string;
 	expires_in?: number;
@@ -107,7 +123,7 @@ export class Auth {
 		// Node's http exists only on desktop, where Electron exposes require on window. Never referenced on mobile.
 		const nodeRequire = (window as unknown as { require?: (id: string) => unknown }).require;
 		if (Platform.isDesktop && nodeRequire) {
-			const http = nodeRequire('http') as typeof import('http');
+			const http = nodeRequire('http') as HttpModule;
 			return new Promise((resolve, reject) => {
 				let done = false;
 				const finish = (err: Error | null, code?: string, redirectUri?: string) => {
