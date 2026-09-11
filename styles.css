@@ -1,0 +1,215 @@
+/* Google Calendar Tasks Sync: FullCalendar variables mapped to Obsidian's theme. No literal colours here; calendar colours come from Google as inline styles. */
+
+.gcal {
+	--fc-border-color: var(--background-modifier-border);
+	--fc-page-bg-color: var(--background-primary);
+	--fc-neutral-bg-color: var(--background-secondary);
+	--fc-neutral-text-color: var(--text-muted);
+	--fc-today-bg-color: var(--background-modifier-hover);
+	--fc-button-bg-color: var(--interactive-normal);
+	--fc-button-border-color: var(--background-modifier-border);
+	--fc-button-text-color: var(--text-normal);
+	--fc-button-hover-bg-color: var(--interactive-hover);
+	--fc-button-hover-border-color: var(--background-modifier-border-hover);
+	--fc-button-active-bg-color: var(--interactive-accent);
+	--fc-button-active-border-color: var(--interactive-accent);
+	--fc-event-bg-color: var(--interactive-accent);
+	--fc-event-border-color: var(--interactive-accent);
+	--fc-event-text-color: var(--text-normal);
+	--fc-highlight-color: var(--text-selection);
+	--fc-now-indicator-color: var(--color-red);
+	--fc-more-link-bg-color: var(--background-secondary);
+	--fc-more-link-text-color: var(--text-muted);
+	--fc-small-font-size: var(--font-ui-smaller);
+	font-size: var(--font-ui-small);
+	position: relative;
+}
+
+.gcal .fc {
+	font-family: var(--font-interface);
+}
+
+.gcal .fc .fc-toolbar.fc-header-toolbar {
+	margin-bottom: var(--size-4-2);
+	gap: var(--size-4-2);
+	flex-wrap: wrap;
+}
+
+.gcal .fc .fc-toolbar-title {
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-semibold);
+}
+
+.gcal .fc .fc-button {
+	font-size: var(--font-ui-small);
+	padding: var(--size-2-1) var(--size-4-2);
+	box-shadow: none;
+}
+
+.gcal .fc .fc-button:focus {
+	box-shadow: none;
+}
+
+.gcal .fc .fc-button-primary:not(:disabled).fc-button-active {
+	color: var(--text-on-accent);
+}
+
+.gcal .fc .fc-event {
+	border-left-width: 3px;
+	cursor: pointer;
+	font-size: var(--font-ui-smaller);
+}
+
+.gcal .fc .fc-daygrid-event {
+	color: var(--text-normal);
+}
+
+.gcal .fc .fc-daygrid-dot-event .fc-event-title {
+	font-weight: var(--font-normal);
+}
+
+.gcal .fc .fc-timegrid-event .fc-event-main,
+.gcal .fc .fc-daygrid-block-event .fc-event-title {
+	color: var(--text-on-accent);
+}
+
+.gcal .fc a {
+	color: inherit;
+	text-decoration: none;
+}
+
+/* Tasks: dashed, with a checkbox. */
+.gcal .fc .gcal-task {
+	border-style: dashed;
+	background: var(--background-primary);
+	border-color: var(--text-muted);
+	color: var(--text-normal);
+	padding-left: var(--size-2-1);
+}
+
+.gcal .fc .gcal-task .fc-event-main {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-1);
+	color: var(--text-normal);
+}
+
+.gcal .fc .gcal-task.is-done {
+	text-decoration: line-through;
+	opacity: 0.6;
+}
+
+.gcal .fc .gcal-task.is-blocked .gcal-task-title::before {
+	content: '! ';
+	color: var(--color-orange);
+	font-weight: var(--font-bold);
+}
+
+.gcal .gcal-task-check {
+	margin: 0;
+	flex: none;
+}
+
+.gcal .gcal-task-title {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Toggle row above the calendar: calendar and task toggles plus the status pill. */
+.gcal .gcal-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-1) var(--size-4-2);
+	margin-bottom: var(--size-4-2);
+}
+
+.gcal .gcal-toggles {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-1);
+	flex: 1;
+}
+
+.gcal .gcal-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--size-2-2);
+	font-size: var(--font-ui-smaller);
+	padding: 0 var(--size-4-2);
+	height: auto;
+	line-height: 1.8;
+	opacity: 0.55;
+	box-shadow: none;
+}
+
+.gcal .gcal-toggle.is-on {
+	opacity: 1;
+}
+
+.gcal-dot {
+	display: inline-block;
+	width: 0.7em;
+	height: 0.7em;
+	border-radius: 50%;
+	background: var(--gcal-color, var(--text-muted));
+	margin-right: var(--size-2-2);
+	flex: none;
+}
+
+.gcal .gcal-pill {
+	font-size: var(--font-ui-smaller);
+	border-radius: var(--radius-s);
+	padding: 0 6px;
+	color: var(--text-muted);
+}
+
+.gcal .gcal-pill.is-stale {
+	color: var(--color-orange);
+}
+
+.gcal .gcal-pill.is-error {
+	color: var(--color-red);
+	cursor: pointer;
+}
+
+.gcal .gcal-empty,
+.gcal-error {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin: var(--size-4-2) 0;
+}
+
+.gcal-error {
+	color: var(--text-error);
+}
+
+/* Modal */
+.gcal-modal .is-hidden {
+	display: none;
+}
+
+.gcal-modal .gcal-modal-title {
+	width: 100%;
+}
+
+.gcal-modal .gcal-modal-note {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.gcal-modal textarea {
+	width: 100%;
+	min-height: 4em;
+}
+
+/* Mobile: the month grid keeps a readable width and the block scrolls sideways. */
+.is-mobile .gcal {
+	overflow-x: auto;
+}
+
+.is-mobile .gcal .fc-dayGridMonth-view,
+.is-mobile .gcal .fc-timeGridWeek-view {
+	min-width: 700px;
+}

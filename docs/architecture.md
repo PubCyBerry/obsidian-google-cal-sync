@@ -1,0 +1,251 @@
+# Architecture
+
+A [C4](https://c4model.com/) description of Google Calendar Tasks Sync: context, containers, components, the two runtime flows that matter, the data it owns, and the decisions behind the shape. Diagrams are Mermaid and render on GitHub and in Obsidian.
+
+## Level 1: System context
+
+Google Calendar Tasks Sync is a plugin inside Obsidian. It talks to Google on the user's behalf with an OAuth client the user created, and it relies on whatever already synchronises the vault to carry one file between devices.
+
+```mermaid
+C4Context
+    title Google Calendar Tasks Sync in context
+    Person(user, "Vault owner", "Edits events and task notes on desktop and phone")
+    System(plugin, "Google Calendar Tasks Sync", "Obsidian plugin: calendar code block and task mirroring")
+    System_Ext(gauth, "Google OAuth 2.0", "accounts.google.com, oauth2.googleapis.com")
+    System_Ext(gcal, "Google Calendar API v3", "Source of truth for events")
+    System_Ext(gtasks, "Google Tasks API v1", "Mirror of task notes")
+    System_Ext(sync, "Vault sync", "Obsidian Sync, iCloud, Syncthing, ... copies .obsidian/plugins/google-cal-sync/data.json")
+    System_Ext(gapps, "Google Calendar / Tasks apps", "Where the phone shows mirrored tasks")
+
+    Rel(user, plugin, "Reads the calendar, creates and drags events, ticks tasks")
+    Rel(plugin, gauth, "Loopback login with PKCE (desktop); refresh token → access token (all devices)", "HTTPS")
+    Rel(plugin, gcal, "calendarList, events.list with syncToken, insert/patch/delete", "HTTPS")
+    Rel(plugin, gtasks, "tasklists, tasks list/insert/patch/delete/move", "HTTPS")
+    Rel(plugin, sync, "data.json written only on login, logout, settings, toggles")
+    Rel(user, gapps, "Completes or adds tasks on the phone")
+    Rel(gapps, gtasks, "")
+```
+
+Trust boundary: everything the plugin stores stays on the user's devices and in the user's own Google account. There is no server operated by the plugin author.
+
+## Level 2: Containers
+
+The same `main.js` runs in two hosts. The only host-specific piece is the loopback HTTP server, which exists solely during a desktop login.
+
+```mermaid
+C4Container
+    title Containers on one device
+    Person(user, "Vault owner")
+    System_Boundary(obsidian, "Obsidian (Electron on desktop, Capacitor on mobile)") {
+        Container(main, "main.js", "TypeScript bundled by esbuild", "Plugin code plus FullCalendar v6, loaded lazily on first code block")
+        Container(loopback, "Loopback server", "Node http, desktop only", "Receives Google's redirect on http://127.0.0.1:<port> for one login")
+        ContainerDb(datajson, "data.json", "JSON in the plugin folder", "Client id/secret, refresh token, calendar toggles, project→list map, settings")
+        ContainerDb(local, "localStorage", "Per vault, per device", "Event cache and syncToken per calendar; previous task id→path map")
+        ContainerDb(notes, "Task notes", "Markdown with frontmatter", "type: Task under <projects>/<project>/tasks/")
+    }
+    System_Ext(google, "Google APIs")
+    System_Ext(browser, "System browser", "Google consent page")
+
+    Rel(user, main, "gcal code block, settings tab, commands")
+    Rel(main, loopback, "starts, waits for ?code&state, stops", "desktop only")
+    Rel(browser, loopback, "redirect after consent", "HTTP 127.0.0.1")
+    Rel(main, google, "requestUrl", "HTTPS")
+    Rel(main, datajson, "loadData / saveData")
+    Rel(main, local, "app.loadLocalStorage / saveLocalStorage")
+    Rel(main, notes, "metadataCache read, processFrontMatter write, create, rename")
+```
+
+Why two stores: `data.json` is copied between devices by vault sync, so it holds what every device needs (the login) and is written as rarely as possible to avoid conflict copies. The event cache changes on every sync and is device-local, so it lives in localStorage and never travels.
+
+## Level 3: Components
+
+One file per responsibility inside `src/`. Arrows are compile-time dependencies.
+
+```mermaid
+C4Component
+    title Components inside main.js
+    Container_Boundary(main, "main.js") {
+        Component(plugin, "main.ts · GCalSync", "Plugin", "Loads settings, registers block/commands/settings tab, owns the sync loop, throttles and deduplicates syncs, publishes change notifications")
+        Component(settings, "settings.ts", "PluginSettingTab (declarative)", "Settings schema, defaults, tolerant loader, settings UI")
+        Component(auth, "auth.ts · Auth", "OAuth", "PKCE, state, loopback server (desktop), token exchange, refresh with single-flight, logout with revoke")
+        Component(google, "google.ts · GoogleClient", "HTTP", "requestUrl wrapper: bearer token, one retry after 401, errors as GoogleError(status)")
+        Component(calendar, "calendar.ts · CalendarSync", "Domain", "calendarList; events.list full or incremental; 410 → full; insert/patch(If-Match)/delete; keeps the cache current")
+        Component(tasks, "tasks.ts · TaskMirror", "Domain", "Collects task notes, pairs them with Google tasks by id, applies field-owner rules, imports, deletes, moves")
+        Component(cache, "cache.ts · Cache", "Storage", "Typed access to localStorage entries")
+        Component(view, "view.ts · GCalBlock", "MarkdownRenderChild", "Parses block options, renders toolbar and FullCalendar, maps cache+notes to events, handles select/click/drag")
+        Component(fc, "fc.ts", "Lazy module", "Re-exports FullCalendar core, dayGrid, timeGrid, interaction, locales")
+        Component(modal, "modal.ts · EventModal", "Modal", "Create/edit/delete one event; validates title and range")
+    }
+    Rel(plugin, settings, "")
+    Rel(plugin, auth, "")
+    Rel(plugin, google, "")
+    Rel(plugin, calendar, "sync per calendar")
+    Rel(plugin, tasks, "sync")
+    Rel(plugin, cache, "")
+    Rel(plugin, view, "registers block")
+    Rel(view, fc, "await import()")
+    Rel(view, modal, "opens")
+    Rel(view, calendar, "patch on drag/resize")
+    Rel(modal, calendar, "insert / patch / remove")
+    Rel(calendar, google, "")
+    Rel(calendar, cache, "")
+    Rel(tasks, google, "")
+    Rel(tasks, cache, "task index")
+    Rel(google, auth, "token(force?)")
+```
+
+| Component | Depends on Obsidian for | Depends on Node for |
+| --- | --- | --- |
+| `auth.ts` | `requestUrl`, `Platform` | `http` (only inside `Platform.isDesktop`) |
+| `google.ts` | `requestUrl` | nothing |
+| `calendar.ts`, `cache.ts` | `App.loadLocalStorage/saveLocalStorage` | nothing |
+| `tasks.ts` | `Vault`, `MetadataCache`, `FileManager.processFrontMatter/renameFile` | nothing |
+| `view.ts`, `modal.ts` | `MarkdownRenderChild`, `Modal`, `Setting`, `moment`, `getLanguage`, `parseYaml` | nothing |
+
+Everything except the loopback server therefore runs unchanged on mobile, which is what lets `isDesktopOnly` be `false`.
+
+## Runtime views
+
+### Login (desktop, once)
+
+```mermaid
+sequenceDiagram
+    actor U as User
+    participant S as Settings tab
+    participant A as Auth
+    participant L as Loopback :port
+    participant B as Browser
+    participant G as Google OAuth
+    participant D as data.json
+
+    U->>S: Log in to Google
+    S->>A: login()
+    A->>A: verifier, S256 challenge, state
+    A->>L: listen 127.0.0.1:0
+    A->>B: window.open(auth URL with challenge, state, access_type=offline, prompt=consent)
+    B->>G: consent
+    G-->>B: 302 http://127.0.0.1:port/?code&state
+    B->>L: GET /?code&state
+    L->>L: state matches? else reject
+    L-->>B: "Connected, close this window"
+    L-->>A: code
+    A->>G: POST /token (code, verifier, client id+secret, redirect_uri)
+    G-->>A: access_token, refresh_token
+    A->>D: refreshToken, calendars (via calendarList), account
+    A-->>S: connected
+```
+
+The access token lives in memory and is refreshed 60 s before expiry or after a 401, on every platform, using only `requestUrl`. Concurrent callers share one refresh (single-flight).
+
+### Sync (every device)
+
+```mermaid
+sequenceDiagram
+    participant T as Trigger
+    participant P as GCalSync.sync()
+    participant C as CalendarSync
+    participant M as TaskMirror
+    participant G as Google
+    participant LS as localStorage
+    participant V as Task notes
+
+    T->>P: block render / window focus / interval / task note changed / Sync now
+    P->>P: already running? reuse. <30 s ago and not forced? skip
+    loop each enabled calendar
+        P->>C: sync(calendarId)
+        C->>LS: read syncToken
+        alt no token
+            C->>G: events.list timeMin/timeMax singleEvents
+        else token
+            C->>G: events.list syncToken
+            G-->>C: 410 → clear cache, full list
+        end
+        C->>LS: upsert / drop cancelled, save nextSyncToken
+    end
+    opt mirroring on
+        P->>M: sync()
+        M->>G: tasks.list per project list (create list if missing)
+        M->>V: collect type: Task notes
+        M->>M: pair by google_task_id (fallback: previous index by path)
+        M->>G: insert / patch / move / delete
+        M->>V: processFrontMatter, rename, create
+        M->>LS: save id→path index
+    end
+    P-->>T: status {lastSyncAt | lastError}; listeners redraw
+```
+
+Triggers include metadata changes of task notes (debounced 1.5 s, forced) so that ticking a checkbox reaches Google immediately, and so the sync runs after the metadata cache has re-parsed the note the plugin itself just wrote.
+
+### Task field ownership
+
+Events are never merged: the last write to Google wins, protected by `If-Match` so a stale client gets a 412 and refreshes. Tasks have two writers, so each field has an owner and a tie-break:
+
+| Field | Owner | Push to Google | Pull to note |
+| --- | --- | --- | --- |
+| `title` | note | when different and note is newer | when Google `updated` is newer than the file's mtime; file is renamed too |
+| `due` | note | same | same |
+| completion | both | `done` ↔ `completed`, anything else ↔ `needsAction` | `completed` → `done`; `needsAction` → `backlog` only if the note was `done` |
+| `backlog` / `active` / `blocked`, body, other properties | note only | never sent | never touched |
+| `notes` (Google) | plugin | `obsidian://` back-link | ignored |
+
+Existence rules: a note without an id gets a task; a task without a note is imported as a note, unless the previous sync's index says a note owned it, in which case the note was deleted and the task is deleted; a task whose note moved to another project is moved with `tasks.move?destinationTasklist`.
+
+## Data
+
+`data.json` (synced between devices, written only on login, logout, settings and toggles):
+
+```json
+{
+  "clientId": "…apps.googleusercontent.com",
+  "clientSecret": "…",
+  "refreshToken": "…",
+  "account": "user@gmail.com",
+  "calendars": { "<calendarId>": { "name": "Work", "color": "#D85B8B", "enabled": true } },
+  "mirror": true,
+  "projectsFolder": "10-projects",
+  "taskLists": { "<project folder name>": "<Google list id>" },
+  "showCompletedTasks": false,
+  "syncIntervalMinutes": 5,
+  "weekStart": "monday"
+}
+```
+
+localStorage (per device):
+
+| Key | Value |
+| --- | --- |
+| `google-cal-sync:<calendarId>` | `{ syncToken, syncedAt, events: { [id]: { id, calendarId, title, start, end, allDay, description, recurringEventId, etag } } }` |
+| `google-cal-sync:tasks` | `{ [googleTaskId]: notePath }` from the previous mirror run |
+
+Task note frontmatter the plugin reads and writes: `type`, `title`, `status`, `due`, `google_task_id`. Nothing else in the note is touched.
+
+## Decisions
+
+| Decision | Alternatives considered | Why this one |
+| --- | --- | --- |
+| Google is the source of truth for events; no local queue or merge | Notes per event; offline queue | Two sources of truth need conflict code larger than the feature. Offline users still see the cache; writes simply fail with a notice |
+| Notes are the source of truth for tasks; Google is a mirror | Google Tasks as master | Tasks API has two states and no custom fields; the note's `status` column and body cannot live there |
+| Login on desktop only; phones reuse the refresh token through vault sync | Relay server; static HTTPS bridge page with `obsidian://` handoff | No infrastructure to run, no public redirect URI to register, nothing to keep alive. A refresh token does not expire from age alone |
+| `data.json` for the login, localStorage for the cache | Everything in `data.json`; SecretStorage | Vault sync must carry the token; it must not carry a file that changes every five minutes. SecretStorage is per device and would strand phones |
+| FullCalendar 6, bundled, imported on first block | Hand-drawn grid; FullCalendar 7 | Month/week/day, drag, resize and touch for free under MIT. v7 needs `temporal-polyfill`, separate CSS and renamed variables; v6 injects its CSS and its `--fc-*` variables map cleanly to Obsidian's |
+| Conflict tie-break by file mtime, not frontmatter `modified` | Date-only comparison | A note created today and ticked on the phone today would otherwise be reverted by the note |
+| `If-Match` on every patch | Blind patch | A 412 costs one extra GET and avoids overwriting an edit made in Google Calendar between syncs |
+| One `select` handler for click and drag-select | `dateClick` + `select` | With `selectable`, a single click fires both; two modals opened |
+| Incremental sync with `syncToken`, first sync bounded to −3/+6 months | Time-window every time | One request per calendar per sync regardless of size; Google's own delta protocol handles deletions |
+| Declarative settings tab (`getSettingDefinitions`) | Imperative `display()` | Settings become searchable in Obsidian 1.13 and the lint recommends it |
+
+## Quality attributes and how they are met
+
+| Attribute | Target | Mechanism | Evidence |
+| --- | --- | --- | --- |
+| Start-up cost | ≤ 50 ms added | `onload` only registers; FullCalendar and locales load on the first `gcal` block | Enable time measured at ~4 ms |
+| Mobile compatibility | Same bundle on iOS/Android | No Node/Electron outside the `Platform.isDesktop` guard; `requestUrl` everywhere; no regex look-behind | `eslint-plugin-obsidianmd` recommended passes with 0 warnings; mobile emulation checked |
+| API budget | ≤ 1 list call per calendar and per task list per sync | syncToken; tasks.list per project; writes only on change; 30 s throttle; single in-flight sync | e2e "request budget" step |
+| Data safety | Never delete what the user did not delete | Deletions only from explicit UI actions or a note that existed in the previous index and is gone; cache untouched on failed requests | e2e steps for 412, 410, deletions |
+| Theme fit | No literal colours | `--fc-*` mapped to Obsidian CSS variables; only Google's calendar colours are inline | `styles.css` |
+
+## Testing
+
+- `npm test`: node:test over the pure logic (settings loader, block options, event mapping, `GoogleClient` retry and errors, `CalendarSync` full/incremental/410/pagination, 412 handling) with an `obsidian` stub.
+- `tests/e2e/`: scripts run inside a development vault against a fake Google transport swapped in at the `GoogleClient.send` level, so `GoogleError` handling is the real code. They cover the whole task ruleset, the calendar write paths and the UI wiring; `login-test.js` drives the loopback server with a fake browser up to the real token endpoint.
+- GitHub Actions runs build, lint and unit tests on Node 20, 22 and 24; a tag push builds and attests the release assets.
