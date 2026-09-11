@@ -1,6 +1,6 @@
 {
   "name": "google-cal-sync",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Two-way Google Calendar in a code block, plus task notes mirrored to Google Tasks.",
   "main": "main.js",
   "type": "module",
