@@ -29,6 +29,12 @@
 	font-family: var(--font-interface);
 }
 
+/* Obsidian's reading view clips table cells (.markdown-rendered td { overflow: hidden }), which would cut
+   multi-day bars at the edge of their first day. FullCalendar positions those bars across cells on purpose. */
+.gcal .fc td.fc-daygrid-day {
+	overflow: visible;
+}
+
 .gcal .fc .fc-toolbar.fc-header-toolbar {
 	margin-bottom: var(--size-4-2);
 	gap: var(--size-4-2);
