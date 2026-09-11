@@ -52,6 +52,9 @@ export class GCalBlock extends MarkdownRenderChild {
 	private pill!: HTMLElement;
 	private showTasks: boolean;
 	private lastState = '';
+	/** A redraw was requested while the block had no size (hidden tab); done when it becomes visible. */
+	private dirty = false;
+	private resizeObserver: ResizeObserver | null = null;
 
 	constructor(
 		containerEl: HTMLElement,
@@ -66,13 +69,33 @@ export class GCalBlock extends MarkdownRenderChild {
 		this.containerEl.addClass('gcal');
 		this.plugin.addListener(this.refresh);
 		this.registerDomEvent(window, 'focus', () => void this.plugin.sync());
+		// FullCalendar measures column widths when it draws. Drawn in a hidden tab (width 0), multi-day bars
+		// collapse to one cell, so redraw or re-measure whenever the block gains or changes size.
+		this.resizeObserver = new ResizeObserver(() => this.onResize());
+		this.resizeObserver.observe(this.containerEl);
 		void this.render();
 	}
 
 	onunload(): void {
 		this.plugin.removeListener(this.refresh);
+		this.resizeObserver?.disconnect();
+		this.resizeObserver = null;
 		this.calendar?.destroy();
 		this.calendar = null;
+	}
+
+	private get hidden(): boolean {
+		return this.containerEl.offsetWidth === 0;
+	}
+
+	private onResize(): void {
+		if (!this.calendar || this.hidden) return;
+		if (this.dirty) {
+			this.dirty = false;
+			this.calendar.refetchEvents();
+		} else {
+			this.calendar.updateSize();
+		}
 	}
 
 	private refresh = (): void => {
@@ -83,6 +106,10 @@ export class GCalBlock extends MarkdownRenderChild {
 		}
 		this.renderToolbar();
 		this.calendar?.setOption('firstDay', WEEKDAYS.indexOf(this.plugin.settings.weekStart));
+		if (this.hidden) {
+			this.dirty = true;
+			return;
+		}
 		this.calendar?.refetchEvents();
 	};
 
@@ -142,6 +169,7 @@ export class GCalBlock extends MarkdownRenderChild {
 			eventContent: (arg) => this.taskContent(arg),
 		});
 		this.calendar.render();
+		if (this.hidden) this.dirty = true;
 		void this.plugin.sync();
 	}
 
