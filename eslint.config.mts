@@ -1,6 +1,6 @@
+import { defineConfig, globalIgnores } from 'eslint/config';
 import obsidianmd from 'eslint-plugin-obsidianmd';
 import globals from 'globals';
-import { globalIgnores, defineConfig } from 'eslint/config';
 
 export default defineConfig(
 	globalIgnores([
@@ -8,7 +8,7 @@ export default defineConfig(
 		'tests',
 		'dist',
 		'esbuild.config.mjs',
-		'version-bump.mjs',
+		'commitlint.config.mjs',
 		'versions.json',
 		'main.js',
 		'package.json',
@@ -34,7 +34,17 @@ export default defineConfig(
 		rules: {
 			'obsidianmd/ui/sentence-case': [
 				'warn',
-				{ enforceCamelCaseLower: true, brands: ['Google', 'Google Calendar', 'Google Tasks', 'Google Cloud', 'Obsidian', 'OAuth'] },
+				{
+					enforceCamelCaseLower: true,
+					brands: [
+						'Google',
+						'Google Calendar',
+						'Google Tasks',
+						'Google Cloud',
+						'Obsidian',
+						'OAuth',
+					],
+				},
 			],
 		},
 	},
