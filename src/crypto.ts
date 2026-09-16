@@ -25,8 +25,20 @@ const PREFIX = 'enc1.';
 const ITERATIONS = 600_000;
 
 async function deriveKey(passphrase: string, salt: Uint8Array<ArrayBuffer>): Promise<CryptoKey> {
-	const raw = await crypto.subtle.importKey('raw', new TextEncoder().encode(passphrase), 'PBKDF2', false, ['deriveKey']);
-	return crypto.subtle.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: ITERATIONS }, raw, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+	const raw = await crypto.subtle.importKey(
+		'raw',
+		new TextEncoder().encode(passphrase),
+		'PBKDF2',
+		false,
+		['deriveKey'],
+	);
+	return crypto.subtle.deriveKey(
+		{ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: ITERATIONS },
+		raw,
+		{ name: 'AES-GCM', length: 256 },
+		false,
+		['encrypt', 'decrypt'],
+	);
 }
 
 /** `enc1.<salt>.<iv>.<ciphertext>` (base64url). PBKDF2-SHA256 → AES-256-GCM, fresh salt and IV every time. */
@@ -34,7 +46,9 @@ export async function encrypt(plain: string, passphrase: string): Promise<string
 	const salt = crypto.getRandomValues(new Uint8Array(16));
 	const iv = crypto.getRandomValues(new Uint8Array(12));
 	const key = await deriveKey(passphrase, salt);
-	const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(plain)));
+	const ct = new Uint8Array(
+		await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(plain)),
+	);
 	return `${PREFIX}${base64url(salt)}.${base64url(iv)}.${base64url(ct)}`;
 }
 

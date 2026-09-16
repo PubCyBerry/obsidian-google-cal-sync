@@ -30,7 +30,14 @@ export class GCalView extends ItemView {
 	onOpen(): Promise<void> {
 		this.contentEl.empty();
 		this.contentEl.addClass('gcal-view');
-		this.addChild(new GCalBlock(this.contentEl.createDiv(), this.plugin, { view: 'month', height: 'auto', calendars: [], tasks: true }));
+		this.addChild(
+			new GCalBlock(this.contentEl.createDiv(), this.plugin, {
+				view: 'month',
+				height: 'auto',
+				calendars: [],
+				tasks: true,
+			}),
+		);
 		return Promise.resolve();
 	}
 

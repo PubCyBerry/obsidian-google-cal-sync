@@ -1,12 +1,18 @@
-import { Notice, Platform, Plugin, debounce } from 'obsidian';
+import { debounce, Notice, Platform, Plugin } from 'obsidian';
 import { Auth, AuthError } from './auth';
 import { Cache } from './cache';
 import { CACHE_WARN_COUNT, CalendarSync, listCalendars } from './calendar';
 import { modernColor } from './colors';
-import { GCalView, VIEW_TYPE } from './pane';
 import { GoogleClient } from './google';
-import { DEFAULT_SETTINGS, GCalSettingTab, errorMessage, loadSettings, type GCalSettings } from './settings';
-import { TaskMirror, collectTaskNotes, type TaskNote } from './tasks';
+import { GCalView, VIEW_TYPE } from './pane';
+import {
+	DEFAULT_SETTINGS,
+	errorMessage,
+	type GCalSettings,
+	GCalSettingTab,
+	loadSettings,
+} from './settings';
+import { collectTaskNotes, TaskMirror, type TaskNote } from './tasks';
 import { GCalBlock, parseOptions } from './view';
 
 export interface SyncStatus {
@@ -48,7 +54,11 @@ export default class GCalSync extends Plugin {
 		this.addSettingTab(new GCalSettingTab(this.app, this));
 		this.registerView(VIEW_TYPE, (leaf) => new GCalView(leaf, this));
 		this.addRibbonIcon('calendar', 'Open Google Calendar', () => void this.openView());
-		this.addCommand({ id: 'open-view', name: 'Open calendar view', callback: () => void this.openView() });
+		this.addCommand({
+			id: 'open-view',
+			name: 'Open calendar view',
+			callback: () => void this.openView(),
+		});
 		this.registerMarkdownCodeBlockProcessor('gcal', (source, el, ctx) => {
 			const opts = parseOptions(source);
 			if (typeof opts === 'string') {
@@ -85,7 +95,11 @@ export default class GCalSync extends Plugin {
 				return true;
 			},
 		});
-		this.addCommand({ id: 'clear-cache', name: 'Clear cache', callback: () => this.clearCache() });
+		this.addCommand({
+			id: 'clear-cache',
+			name: 'Clear cache',
+			callback: () => this.clearCache(),
+		});
 
 		this.app.workspace.onLayoutReady(() => {
 			this.restartTimer();
@@ -99,10 +113,25 @@ export default class GCalSync extends Plugin {
 				1500,
 				true,
 			);
-			const inProjects = (path: string) => path.startsWith(`${this.settings.projectsFolder}/`);
-			this.registerEvent(this.app.metadataCache.on('changed', (file, _data, cache) => inProjects(file.path) && cache.frontmatter?.type === 'Task' && onTaskNote()));
-			this.registerEvent(this.app.vault.on('delete', (file) => inProjects(file.path) && onTaskNote()));
-			this.registerEvent(this.app.vault.on('rename', (file, oldPath) => (inProjects(file.path) || inProjects(oldPath)) && onTaskNote()));
+			const inProjects = (path: string) =>
+				path.startsWith(`${this.settings.projectsFolder}/`);
+			this.registerEvent(
+				this.app.metadataCache.on(
+					'changed',
+					(file, _data, cache) =>
+						inProjects(file.path) && cache.frontmatter?.type === 'Task' && onTaskNote(),
+				),
+			);
+			this.registerEvent(
+				this.app.vault.on('delete', (file) => inProjects(file.path) && onTaskNote()),
+			);
+			this.registerEvent(
+				this.app.vault.on(
+					'rename',
+					(file, oldPath) =>
+						(inProjects(file.path) || inProjects(oldPath)) && onTaskNote(),
+				),
+			);
 			if (this.auth.loggedIn) void this.sync();
 		});
 	}
@@ -160,7 +189,8 @@ export default class GCalSync extends Plugin {
 
 	private lastCachedSync(): number {
 		let max = 0;
-		for (const id of Object.keys(this.settings.calendars)) max = Math.max(max, this.cache.calendar(id)?.syncedAt ?? 0);
+		for (const id of Object.keys(this.settings.calendars))
+			max = Math.max(max, this.cache.calendar(id)?.syncedAt ?? 0);
 		return max;
 	}
 
@@ -178,7 +208,11 @@ export default class GCalSync extends Plugin {
 		const list = await listCalendars(this.google);
 		const next: GCalSettings['calendars'] = {};
 		for (const c of list) {
-			next[c.id] = { name: c.name, color: modernColor(c.color), enabled: this.settings.calendars[c.id]?.enabled ?? true };
+			next[c.id] = {
+				name: c.name,
+				color: modernColor(c.color),
+				enabled: this.settings.calendars[c.id]?.enabled ?? true,
+			};
 			if (c.primary) this.settings.account = c.id;
 		}
 		this.lastListRefresh = Date.now();
@@ -214,17 +248,27 @@ export default class GCalSync extends Plugin {
 		let events = 0;
 		let tasks = 0;
 		try {
-			if (Object.keys(this.settings.calendars).length === 0 || Date.now() - this.lastListRefresh > LIST_REFRESH_MS) await this.refreshCalendarList();
+			if (
+				Object.keys(this.settings.calendars).length === 0 ||
+				Date.now() - this.lastListRefresh > LIST_REFRESH_MS
+			)
+				await this.refreshCalendarList();
 			for (const [id, cal] of Object.entries(this.settings.calendars)) {
 				if (!cal.enabled) continue;
 				const state = await this.calendars.sync(id);
 				events += Object.keys(state.events).length;
 			}
-			if (events > CACHE_WARN_COUNT) new Notice(`${events} events are cached. Run "Clear cache" to start a fresh, smaller cache.`);
+			if (events > CACHE_WARN_COUNT)
+				new Notice(
+					`${events} events are cached. Run "Clear cache" to start a fresh, smaller cache.`,
+				);
 			if (this.settings.mirror) {
 				const r = await this.tasks.sync();
 				tasks = r.total;
-				if (r.imported) new Notice(`Imported ${r.imported} task${r.imported === 1 ? '' : 's'} from Google Tasks`);
+				if (r.imported)
+					new Notice(
+						`Imported ${r.imported} task${r.imported === 1 ? '' : 's'} from Google Tasks`,
+					);
 			}
 			this.status.lastSyncAt = Date.now();
 			this.status.lastError = '';
@@ -232,7 +276,8 @@ export default class GCalSync extends Plugin {
 			if (notice) new Notice(`Synced: ${events} events, ${tasks} tasks`);
 		} catch (e) {
 			this.status.lastError = errorMessage(e);
-			if (notice || (e instanceof AuthError && this.noticedError !== this.status.lastError)) new Notice(this.status.lastError);
+			if (notice || (e instanceof AuthError && this.noticedError !== this.status.lastError))
+				new Notice(this.status.lastError);
 			this.noticedError = this.status.lastError;
 		} finally {
 			this.status.syncing = false;

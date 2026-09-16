@@ -1,8 +1,9 @@
 // Bundles the unit tests with an `obsidian` stub and runs them with node:test.
-import esbuild from 'esbuild';
+
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import esbuild from 'esbuild';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const outfile = path.join(here, '.out', 'unit.test.cjs');
@@ -16,5 +17,7 @@ await esbuild.build({
 	alias: { obsidian: path.join(here, 'obsidian-stub.ts') },
 	logLevel: 'error',
 });
-const r = spawnSync(process.execPath, ['--test', outfile], { stdio: 'inherit' });
+const r = spawnSync(process.execPath, ['--test', outfile], {
+	stdio: 'inherit',
+});
 process.exit(r.status ?? 1);

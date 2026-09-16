@@ -122,7 +122,7 @@
 }
 
 .gcal .fc .gcal-task.is-blocked .gcal-task-title::before {
-	content: '! ';
+	content: "! ";
 	color: var(--color-orange);
 	font-weight: var(--font-bold);
 }

@@ -1,13 +1,23 @@
-import { MarkdownRenderChild, Notice, Platform, getLanguage, parseYaml } from 'obsidian';
-import type { Calendar, EventInput as FcEvent, EventClickArg, EventDropArg, EventContentArg } from '@fullcalendar/core';
+import type {
+	Calendar,
+	EventClickArg,
+	EventContentArg,
+	EventDropArg,
+	EventInput as FcEvent,
+} from '@fullcalendar/core';
 import type { EventResizeDoneArg } from '@fullcalendar/interaction';
+import { getLanguage, MarkdownRenderChild, Notice, Platform, parseYaml } from 'obsidian';
 import type { CachedEvent } from './cache';
 import { addDays, fmtLocal, fromNow } from './dates';
 import type GCalSync from './main';
 import { EventModal } from './modal';
 import { errorMessage, WEEKDAYS } from './settings';
 
-const VIEWS = { month: 'dayGridMonth', week: 'timeGridWeek', day: 'timeGridDay' } as const;
+const VIEWS = {
+	month: 'dayGridMonth',
+	week: 'timeGridWeek',
+	day: 'timeGridDay',
+} as const;
 
 export interface BlockOptions {
 	view: keyof typeof VIEWS;
@@ -24,17 +34,25 @@ export function parseOptions(source: string): BlockOptions | string {
 		return 'gcal: options must be YAML (key: value per line)';
 	}
 	const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-	const opts: BlockOptions = { view: 'month', height: 'auto', calendars: [], tasks: true };
+	const opts: BlockOptions = {
+		view: 'month',
+		height: 'auto',
+		calendars: [],
+		tasks: true,
+	};
 	if (o.view !== undefined) {
-		if (typeof o.view !== 'string' || !(o.view in VIEWS)) return 'gcal: `view` must be one of month, week, day';
+		if (typeof o.view !== 'string' || !(o.view in VIEWS))
+			return 'gcal: `view` must be one of month, week, day';
 		opts.view = o.view as BlockOptions['view'];
 	}
 	if (o.height !== undefined) {
-		if (typeof o.height !== 'string' && typeof o.height !== 'number') return 'gcal: `height` must be a CSS length or auto';
+		if (typeof o.height !== 'string' && typeof o.height !== 'number')
+			return 'gcal: `height` must be a CSS length or auto';
 		opts.height = String(o.height);
 	}
 	if (o.calendars !== undefined) {
-		if (!Array.isArray(o.calendars) || !o.calendars.every((c) => typeof c === 'string')) return 'gcal: `calendars` must be a list of calendar ids';
+		if (!Array.isArray(o.calendars) || !o.calendars.every((c) => typeof c === 'string'))
+			return 'gcal: `calendars` must be a list of calendar ids';
 		opts.calendars = o.calendars;
 	}
 	if (o.tasks !== undefined) {
@@ -115,7 +133,13 @@ export class GCalBlock extends MarkdownRenderChild {
 
 	private stateKey(): string {
 		const s = this.plugin.settings;
-		return !s.clientId || !s.clientSecret ? 'no-client' : !s.refreshToken ? 'no-token' : this.plugin.auth.locked ? 'locked' : 'ready';
+		return !s.clientId || !s.clientSecret
+			? 'no-client'
+			: !s.refreshToken
+				? 'no-token'
+				: this.plugin.auth.locked
+					? 'locked'
+					: 'ready';
 	}
 
 	private async render(): Promise<void> {
@@ -124,18 +148,26 @@ export class GCalBlock extends MarkdownRenderChild {
 		this.calendar = null;
 		this.containerEl.empty();
 		if (state === 'no-client') {
-			this.containerEl.createEl('p', { cls: 'gcal-empty', text: 'Enter a Google client ID and secret in the plugin settings.' });
+			this.containerEl.createEl('p', {
+				cls: 'gcal-empty',
+				text: 'Enter a Google client ID and secret in the plugin settings.',
+			});
 			return;
 		}
 		if (state === 'no-token') {
 			this.containerEl.createEl('p', {
 				cls: 'gcal-empty',
-				text: Platform.isDesktop ? 'Log in to Google in the plugin settings to see your calendar here.' : 'Log in on desktop. The calendar appears here once the vault syncs the login to this device.',
+				text: Platform.isDesktop
+					? 'Log in to Google in the plugin settings to see your calendar here.'
+					: 'Log in on desktop. The calendar appears here once the vault syncs the login to this device.',
 			});
 			return;
 		}
 		if (state === 'locked') {
-			this.containerEl.createEl('p', { cls: 'gcal-empty', text: 'Enter the sync passphrase in the plugin settings to unlock the calendar on this device.' });
+			this.containerEl.createEl('p', {
+				cls: 'gcal-empty',
+				text: 'Enter the sync passphrase in the plugin settings to unlock the calendar on this device.',
+			});
 			return;
 		}
 		this.toolbar = this.containerEl.createDiv({ cls: 'gcal-toolbar' });
@@ -149,7 +181,11 @@ export class GCalBlock extends MarkdownRenderChild {
 			locales: fc.allLocales,
 			locale: getLanguage(),
 			initialView: VIEWS[this.opts.view],
-			headerToolbar: { left: 'today prev,next title', center: '', right: 'timeGridDay,timeGridWeek,dayGridMonth' },
+			headerToolbar: {
+				left: 'today prev,next title',
+				center: '',
+				right: 'timeGridDay,timeGridWeek,dayGridMonth',
+			},
 			firstDay: WEEKDAYS.indexOf(s.weekStart),
 			height: this.opts.height === 'auto' ? 'auto' : this.opts.height,
 			slotMinTime: '07:00:00',
@@ -165,7 +201,11 @@ export class GCalBlock extends MarkdownRenderChild {
 			// A plain click selects one day (or one slot), so `select` covers both click and drag-to-select.
 			select: (info) => {
 				this.calendar?.unselect();
-				this.openModal({ start: info.startStr, end: info.endStr, allDay: info.allDay });
+				this.openModal({
+					start: info.startStr,
+					end: info.endStr,
+					allDay: info.allDay,
+				});
 			},
 			eventClick: (info) => this.onEventClick(info),
 			eventDrop: (info) => void this.onMove(info),
@@ -173,7 +213,13 @@ export class GCalBlock extends MarkdownRenderChild {
 			eventContent: (arg) => this.taskContent(arg),
 			eventDidMount: (arg) => {
 				const start = arg.event.start;
-				if (this.plugin.settings.hideMidnightTime && !arg.event.allDay && start && start.getHours() === 0 && start.getMinutes() === 0) {
+				if (
+					this.plugin.settings.hideMidnightTime &&
+					!arg.event.allDay &&
+					start &&
+					start.getHours() === 0 &&
+					start.getMinutes() === 0
+				) {
 					arg.el.querySelector('.fc-event-time')?.remove();
 				}
 			},
@@ -190,8 +236,13 @@ export class GCalBlock extends MarkdownRenderChild {
 		const toggles = this.toolbar.createDiv({ cls: 'gcal-toggles' });
 		if (this.opts.calendars.length === 0) {
 			for (const cal of Object.values(s.calendars)) {
-				const b = toggles.createEl('button', { cls: ['gcal-toggle', cal.enabled ? 'is-on' : ''], text: cal.name });
-				b.createSpan({ cls: 'gcal-dot' }).setCssProps({ '--gcal-color': cal.color });
+				const b = toggles.createEl('button', {
+					cls: ['gcal-toggle', cal.enabled ? 'is-on' : ''],
+					text: cal.name,
+				});
+				b.createSpan({ cls: 'gcal-dot' }).setCssProps({
+					'--gcal-color': cal.color,
+				});
 				b.prepend(b.lastChild as Node);
 				b.onclick = async () => {
 					cal.enabled = !cal.enabled;
@@ -201,7 +252,10 @@ export class GCalBlock extends MarkdownRenderChild {
 			}
 		}
 		if (this.opts.tasks) {
-			const b = toggles.createEl('button', { cls: ['gcal-toggle', 'gcal-toggle-tasks', this.showTasks ? 'is-on' : ''], text: 'Tasks' });
+			const b = toggles.createEl('button', {
+				cls: ['gcal-toggle', 'gcal-toggle-tasks', this.showTasks ? 'is-on' : ''],
+				text: 'Tasks',
+			});
 			b.onclick = () => {
 				this.showTasks = !this.showTasks;
 				this.renderToolbar();
@@ -245,20 +299,37 @@ export class GCalBlock extends MarkdownRenderChild {
 			if (!cache) continue;
 			for (const ev of Object.values(cache.events)) {
 				const kind: Kind = { kind: 'event', ev };
-				out.push({ id: `${calId}::${ev.id}`, title: ev.title, start: ev.start, end: ev.end || undefined, allDay: ev.allDay, backgroundColor: color, borderColor: color, extendedProps: kind });
+				out.push({
+					id: `${calId}::${ev.id}`,
+					title: ev.title,
+					start: ev.start,
+					end: ev.end || undefined,
+					allDay: ev.allDay,
+					backgroundColor: color,
+					borderColor: color,
+					extendedProps: kind,
+				});
 			}
 		}
 		if (this.showTasks) {
 			for (const t of this.plugin.taskNotes()) {
 				if (!t.due || (t.status === 'done' && !s.showCompletedTasks)) continue;
-				const kind: Kind = { kind: 'task', path: t.file.path, status: t.status };
+				const kind: Kind = {
+					kind: 'task',
+					path: t.file.path,
+					status: t.status,
+				};
 				out.push({
 					id: `task::${t.file.path}`,
 					title: t.title,
 					start: t.due,
 					allDay: true,
 					editable: false,
-					classNames: ['gcal-task', t.status === 'done' ? 'is-done' : '', t.status === 'blocked' ? 'is-blocked' : ''].filter(Boolean),
+					classNames: [
+						'gcal-task',
+						t.status === 'done' ? 'is-done' : '',
+						t.status === 'blocked' ? 'is-blocked' : '',
+					].filter(Boolean),
 					extendedProps: kind,
 				});
 			}
@@ -270,7 +341,10 @@ export class GCalBlock extends MarkdownRenderChild {
 		const kind = arg.event.extendedProps as Kind;
 		if (kind.kind !== 'task') return true;
 		const frag = createFragment();
-		const box = frag.createEl('input', { type: 'checkbox', cls: 'gcal-task-check' });
+		const box = frag.createEl('input', {
+			type: 'checkbox',
+			cls: 'gcal-task-check',
+		});
 		box.checked = kind.status === 'done';
 		box.onclick = (e) => {
 			e.stopPropagation();
@@ -283,9 +357,12 @@ export class GCalBlock extends MarkdownRenderChild {
 	private async toggleTask(path: string, done: boolean): Promise<void> {
 		const file = this.plugin.app.vault.getFileByPath(path);
 		if (!file) return;
-		await this.plugin.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
-			fm.status = done ? 'done' : 'backlog';
-		});
+		await this.plugin.app.fileManager.processFrontMatter(
+			file,
+			(fm: Record<string, unknown>) => {
+				fm.status = done ? 'done' : 'backlog';
+			},
+		);
 		// The metadata 'changed' event redraws and mirrors once the cache has the new status.
 	}
 
@@ -312,9 +389,17 @@ export class GCalBlock extends MarkdownRenderChild {
 		const ev = kind.ev;
 		const allDay = info.event.allDay;
 		const start = info.event.startStr;
-		const end = info.event.endStr || (allDay ? addDays(start, 1) : fmtLocal(new Date((info.event.start?.getTime() ?? Date.now()) + 3_600_000)));
+		const end =
+			info.event.endStr ||
+			(allDay
+				? addDays(start, 1)
+				: fmtLocal(new Date((info.event.start?.getTime() ?? Date.now()) + 3_600_000)));
 		try {
-			await this.plugin.calendars.patch(ev.calendarId, ev.id, ev.etag, { start, end, allDay });
+			await this.plugin.calendars.patch(ev.calendarId, ev.id, ev.etag, {
+				start,
+				end,
+				allDay,
+			});
 			this.plugin.notifyChanged();
 		} catch (e) {
 			info.revert();

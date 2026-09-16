@@ -6,7 +6,8 @@ const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
 // The narrowest scopes that cover calendarList.list and events.*: no calendar sharing, settings or deletion.
-const SCOPES = 'https://www.googleapis.com/auth/calendar.calendarlist.readonly https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/tasks';
+const SCOPES =
+	'https://www.googleapis.com/auth/calendar.calendarlist.readonly https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/tasks';
 const LOGIN_TIMEOUT_MS = 120_000;
 /** Id of the sync passphrase in this device's Obsidian keychain (Settings → Keychain). Never leaves the device. */
 const PASSPHRASE_ID = 'google-cal-sync-passphrase';
@@ -122,7 +123,8 @@ export class Auth {
 
 	/** Returns a valid access token, refreshing it with the stored refresh token when needed. Works on mobile. */
 	async token(force = false): Promise<string> {
-		if (!force && this.accessToken && Date.now() < this.expiresAt - 60_000) return this.accessToken;
+		if (!force && this.accessToken && Date.now() < this.expiresAt - 60_000)
+			return this.accessToken;
 		if (!this.refreshing) {
 			this.refreshing = this.refresh().finally(() => {
 				this.refreshing = null;
@@ -136,20 +138,39 @@ export class Auth {
 		if (!clientId || !clientSecret) throw new AuthError('Client ID and secret are missing.');
 		if (!this.loggedIn) throw new AuthError('Not logged in on this device.');
 		await this.unlocking;
-		if (!this.refreshToken) throw new AuthError('Enter the sync passphrase in the plugin settings to unlock the login on this device.');
-		await this.tokenRequest({ grant_type: 'refresh_token', refresh_token: this.refreshToken });
+		if (!this.refreshToken)
+			throw new AuthError(
+				'Enter the sync passphrase in the plugin settings to unlock the login on this device.',
+			);
+		await this.tokenRequest({
+			grant_type: 'refresh_token',
+			refresh_token: this.refreshToken,
+		});
 		return this.accessToken;
 	}
 
 	private async tokenRequest(params: Record<string, string>): Promise<TokenResponse> {
 		const { clientId, clientSecret } = this.plugin.settings;
-		const body = new URLSearchParams({ client_id: clientId, client_secret: clientSecret, ...params }).toString();
-		const res = await requestUrl({ url: TOKEN_URL, method: 'POST', contentType: 'application/x-www-form-urlencoded', body, throw: false });
+		const body = new URLSearchParams({
+			client_id: clientId,
+			client_secret: clientSecret,
+			...params,
+		}).toString();
+		const res = await requestUrl({
+			url: TOKEN_URL,
+			method: 'POST',
+			contentType: 'application/x-www-form-urlencoded',
+			body,
+			throw: false,
+		});
 		const data = (res.text ? JSON.parse(res.text) : {}) as TokenResponse;
 		if (res.status >= 400 || !data.access_token) {
 			this.accessToken = '';
-			if (data.error === 'invalid_grant' && params.grant_type === 'refresh_token') throw new AuthError('Google connection lost. Log in again on desktop.');
-			throw new AuthError(data.error_description || data.error || `Token request failed (${res.status})`);
+			if (data.error === 'invalid_grant' && params.grant_type === 'refresh_token')
+				throw new AuthError('Google connection lost. Log in again on desktop.');
+			throw new AuthError(
+				data.error_description || data.error || `Token request failed (${res.status})`,
+			);
 		}
 		this.accessToken = data.access_token;
 		this.expiresAt = Date.now() + (data.expires_in ?? 3600) * 1000;
@@ -161,7 +182,8 @@ export class Auth {
 		if (!Platform.isDesktop) throw new AuthError('Login is only available on desktop.');
 		if (this.pending) throw new AuthError('A login is already in progress.');
 		const { clientId, clientSecret } = this.plugin.settings;
-		if (!clientId || !clientSecret) throw new AuthError('Enter the client ID and secret first.');
+		if (!clientId || !clientSecret)
+			throw new AuthError('Enter the client ID and secret first.');
 		const passphrase = this.passphrase;
 		if (!passphrase) throw new AuthError('Set a sync passphrase first.');
 		this.pending = true;
@@ -170,8 +192,16 @@ export class Auth {
 			const state = randomToken(16);
 			const challenge = base64url(await sha256(verifier));
 			const { code, redirectUri } = await this.waitForCode(clientId, challenge, state);
-			const data = await this.tokenRequest({ grant_type: 'authorization_code', code, code_verifier: verifier, redirect_uri: redirectUri });
-			if (!data.refresh_token) throw new AuthError('Google did not return a refresh token. Remove the app from your Google account permissions and log in again.');
+			const data = await this.tokenRequest({
+				grant_type: 'authorization_code',
+				code,
+				code_verifier: verifier,
+				redirect_uri: redirectUri,
+			});
+			if (!data.refresh_token)
+				throw new AuthError(
+					'Google did not return a refresh token. Remove the app from your Google account permissions and log in again.',
+				);
 			this.refreshToken = data.refresh_token;
 			this.settled = true;
 			await this.seal(passphrase);
@@ -183,7 +213,11 @@ export class Auth {
 		}
 	}
 
-	private waitForCode(clientId: string, challenge: string, state: string): Promise<{ code: string; redirectUri: string }> {
+	private waitForCode(
+		clientId: string,
+		challenge: string,
+		state: string,
+	): Promise<{ code: string; redirectUri: string }> {
 		// Node's http exists only on desktop, where Electron exposes require on window. Never referenced on mobile.
 		const nodeRequire = (window as unknown as { require?: (id: string) => unknown }).require;
 		if (Platform.isDesktop && nodeRequire) {
@@ -196,7 +230,8 @@ export class Auth {
 					window.clearTimeout(timer);
 					server.close();
 					server.closeAllConnections();
-					if (err || !code || !redirectUri) reject(err ?? new AuthError('Login was cancelled.'));
+					if (err || !code || !redirectUri)
+						reject(err ?? new AuthError('Login was cancelled.'));
 					else resolve({ code, redirectUri });
 				};
 				const server = http.createServer((req, res) => {
@@ -210,13 +245,20 @@ export class Auth {
 					const code = url.searchParams.get('code') ?? '';
 					// Google's error codes are ASCII words; nothing else is echoed into the page.
 					const error = (url.searchParams.get('error') ?? '').replace(/[^\w.-]/g, '');
-					res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-					res.end(`<!doctype html><title>Google Calendar Tasks Sync</title><body style="font-family:sans-serif;padding:2em"><h2>${code ? 'Connected. You can close this window and return to Obsidian.' : 'Login failed.'}</h2>${error ? `<p>${error}</p>` : ''}</body>`);
+					res.writeHead(200, {
+						'Content-Type': 'text/html; charset=utf-8',
+					});
+					res.end(
+						`<!doctype html><title>Google Calendar Tasks Sync</title><body style="font-family:sans-serif;padding:2em"><h2>${code ? 'Connected. You can close this window and return to Obsidian.' : 'Login failed.'}</h2>${error ? `<p>${error}</p>` : ''}</body>`,
+					);
 					if (code) finish(null, code, `http://127.0.0.1:${port}`);
 					else finish(new AuthError(error || 'Google did not send a code.'));
 				});
 				let port = 0;
-				const timer = window.setTimeout(() => finish(new AuthError('Timed out waiting for the browser.')), LOGIN_TIMEOUT_MS);
+				const timer = window.setTimeout(
+					() => finish(new AuthError('Timed out waiting for the browser.')),
+					LOGIN_TIMEOUT_MS,
+				);
 				server.once('error', (e) => finish(e));
 				server.listen(0, '127.0.0.1', () => {
 					const addr = server.address();
@@ -245,7 +287,11 @@ export class Auth {
 		await this.unlocking;
 		if (this.refreshToken) {
 			try {
-				await requestUrl({ url: `${REVOKE_URL}?token=${encodeURIComponent(this.refreshToken)}`, method: 'POST', throw: false });
+				await requestUrl({
+					url: `${REVOKE_URL}?token=${encodeURIComponent(this.refreshToken)}`,
+					method: 'POST',
+					throw: false,
+				});
 			} catch {
 				// Offline: the token is dropped locally anyway.
 			}

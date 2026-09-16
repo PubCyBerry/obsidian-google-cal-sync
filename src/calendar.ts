@@ -1,5 +1,5 @@
 import type { Cache, CachedEvent, CalendarCache } from './cache';
-import { GoogleError, type GoogleClient } from './google';
+import { type GoogleClient, GoogleError } from './google';
 
 const API = 'https://www.googleapis.com/calendar/v3';
 const PAST_MONTHS = 3;
@@ -49,13 +49,25 @@ export async function listCalendars(g: GoogleClient): Promise<CalendarListEntry[
 	const out: CalendarListEntry[] = [];
 	let pageToken: string | undefined;
 	do {
-		const page = await g.call<{ items?: Array<{ id: string; summary?: string; summaryOverride?: string; backgroundColor?: string; primary?: boolean }>; nextPageToken?: string }>(
-			'GET',
-			`${API}/users/me/calendarList`,
-			{ query: { pageToken, minAccessRole: 'reader' } },
-		);
+		const page = await g.call<{
+			items?: Array<{
+				id: string;
+				summary?: string;
+				summaryOverride?: string;
+				backgroundColor?: string;
+				primary?: boolean;
+			}>;
+			nextPageToken?: string;
+		}>('GET', `${API}/users/me/calendarList`, {
+			query: { pageToken, minAccessRole: 'reader' },
+		});
 		for (const c of page.items ?? []) {
-			out.push({ id: c.id, name: c.summaryOverride || c.summary || c.id, color: c.backgroundColor ?? '', primary: !!c.primary });
+			out.push({
+				id: c.id,
+				name: c.summaryOverride || c.summary || c.id,
+				color: c.backgroundColor ?? '',
+				primary: !!c.primary,
+			});
 		}
 		pageToken = page.nextPageToken;
 	} while (pageToken);
@@ -83,9 +95,17 @@ export function toGoogle(input: Partial<EventInput>, nullOthers: boolean): Recor
 	if (input.title !== undefined) body.summary = input.title;
 	if (input.description !== undefined) body.description = input.description;
 	const time = (v: string, allDay: boolean): GoogleTime =>
-		allDay ? (nullOthers ? { date: v, dateTime: null } : { date: v }) : nullOthers ? { dateTime: v, date: null } : { dateTime: v };
-	if (input.start !== undefined && input.allDay !== undefined) body.start = time(input.start, input.allDay);
-	if (input.end !== undefined && input.allDay !== undefined) body.end = time(input.end, input.allDay);
+		allDay
+			? nullOthers
+				? { date: v, dateTime: null }
+				: { date: v }
+			: nullOthers
+				? { dateTime: v, date: null }
+				: { dateTime: v };
+	if (input.start !== undefined && input.allDay !== undefined)
+		body.start = time(input.start, input.allDay);
+	if (input.end !== undefined && input.allDay !== undefined)
+		body.end = time(input.end, input.allDay);
 	return body;
 }
 
@@ -101,13 +121,21 @@ export class CalendarSync {
 
 	/** Incremental sync with syncToken; full sync over a bounded window when there is none or Google answers 410. */
 	async sync(calendarId: string): Promise<CalendarCache> {
-		let state = this.cache.calendar(calendarId) ?? { syncToken: '', syncedAt: 0, events: {} };
+		let state = this.cache.calendar(calendarId) ?? {
+			syncToken: '',
+			syncedAt: 0,
+			events: {},
+		};
 		try {
 			state = await this.fetch(calendarId, state);
 		} catch (e) {
 			if (!(e instanceof GoogleError) || e.status !== 410) throw e;
 			this.cache.clearCalendar(calendarId);
-			state = await this.fetch(calendarId, { syncToken: '', syncedAt: 0, events: {} });
+			state = await this.fetch(calendarId, {
+				syncToken: '',
+				syncedAt: 0,
+				events: {},
+			});
 		}
 		this.cache.saveCalendar(calendarId, state);
 		return state;
@@ -122,17 +150,21 @@ export class CalendarSync {
 		let pageToken: string | undefined;
 		let syncToken = state.syncToken;
 		do {
-			const page = await this.g.call<EventList>('GET', `${API}/calendars/${encodeURIComponent(calendarId)}/events`, {
-				query: {
-					singleEvents: true,
-					showDeleted: true,
-					maxResults: 2500,
-					pageToken,
-					syncToken: full ? undefined : state.syncToken,
-					timeMin: full ? isoDate(timeMin) : undefined,
-					timeMax: full ? isoDate(timeMax) : undefined,
+			const page = await this.g.call<EventList>(
+				'GET',
+				`${API}/calendars/${encodeURIComponent(calendarId)}/events`,
+				{
+					query: {
+						singleEvents: true,
+						showDeleted: true,
+						maxResults: 2500,
+						pageToken,
+						syncToken: full ? undefined : state.syncToken,
+						timeMin: full ? isoDate(timeMin) : undefined,
+						timeMax: full ? isoDate(timeMax) : undefined,
+					},
 				},
-			});
+			);
 			for (const item of page.items ?? []) {
 				if (item.status === 'cancelled') delete events[item.id];
 				else events[item.id] = fromGoogle(calendarId, item);
@@ -144,23 +176,38 @@ export class CalendarSync {
 	}
 
 	async insert(calendarId: string, input: EventInput): Promise<CachedEvent> {
-		const created = await this.g.call<GoogleEvent>('POST', `${API}/calendars/${encodeURIComponent(calendarId)}/events`, {
-			body: toGoogle(input, false),
-		});
+		const created = await this.g.call<GoogleEvent>(
+			'POST',
+			`${API}/calendars/${encodeURIComponent(calendarId)}/events`,
+			{
+				body: toGoogle(input, false),
+			},
+		);
 		return this.upsert(calendarId, created);
 	}
 
 	/** Patches only the given fields. Sends If-Match so a change made elsewhere is not overwritten (412). */
-	async patch(calendarId: string, id: string, etag: string, changes: Partial<EventInput>): Promise<CachedEvent> {
+	async patch(
+		calendarId: string,
+		id: string,
+		etag: string,
+		changes: Partial<EventInput>,
+	): Promise<CachedEvent> {
 		const url = `${API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(id)}`;
 		try {
-			const updated = await this.g.call<GoogleEvent>('PATCH', url, { body: toGoogle(changes, true), headers: etag ? { 'If-Match': etag } : {} });
+			const updated = await this.g.call<GoogleEvent>('PATCH', url, {
+				body: toGoogle(changes, true),
+				headers: etag ? { 'If-Match': etag } : {},
+			});
 			return this.upsert(calendarId, updated);
 		} catch (e) {
 			if (e instanceof GoogleError && e.status === 412) {
 				const fresh = await this.g.call<GoogleEvent>('GET', url);
 				this.upsert(calendarId, fresh);
-				throw new GoogleError(412, 'This event was changed elsewhere. The calendar has been refreshed; try again.');
+				throw new GoogleError(
+					412,
+					'This event was changed elsewhere. The calendar has been refreshed; try again.',
+				);
 			}
 			throw e;
 		}
@@ -168,7 +215,10 @@ export class CalendarSync {
 
 	async remove(calendarId: string, id: string): Promise<void> {
 		try {
-			await this.g.call('DELETE', `${API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(id)}`);
+			await this.g.call(
+				'DELETE',
+				`${API}/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(id)}`,
+			);
 		} catch (e) {
 			if (!(e instanceof GoogleError) || (e.status !== 404 && e.status !== 410)) throw e;
 		}
@@ -181,7 +231,11 @@ export class CalendarSync {
 
 	private upsert(calendarId: string, e: GoogleEvent): CachedEvent {
 		const ev = fromGoogle(calendarId, e);
-		const state = this.cache.calendar(calendarId) ?? { syncToken: '', syncedAt: 0, events: {} };
+		const state = this.cache.calendar(calendarId) ?? {
+			syncToken: '',
+			syncedAt: 0,
+			events: {},
+		};
 		if (e.status === 'cancelled') delete state.events[ev.id];
 		else state.events[ev.id] = ev;
 		this.cache.saveCalendar(calendarId, state);

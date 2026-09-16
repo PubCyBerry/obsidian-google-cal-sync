@@ -1,4 +1,11 @@
-import { App, Notice, Platform, PluginSettingTab, Setting, type SettingDefinitionItem } from 'obsidian';
+import {
+	type App,
+	Notice,
+	Platform,
+	PluginSettingTab,
+	type Setting,
+	type SettingDefinitionItem,
+} from 'obsidian';
 import { fmtDateTime } from './dates';
 import type GCalSync from './main';
 
@@ -8,7 +15,15 @@ export interface CalendarInfo {
 	enabled: boolean;
 }
 
-export const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const;
+export const WEEKDAYS = [
+	'sunday',
+	'monday',
+	'tuesday',
+	'wednesday',
+	'thursday',
+	'friday',
+	'saturday',
+] as const;
 export type Weekday = (typeof WEEKDAYS)[number];
 
 export interface GCalSettings {
@@ -43,21 +58,39 @@ export const DEFAULT_SETTINGS: GCalSettings = {
 };
 
 export function loadSettings(saved: unknown): GCalSettings {
-	const s: GCalSettings = { ...DEFAULT_SETTINGS, calendars: {}, taskLists: {} };
+	const s: GCalSettings = {
+		...DEFAULT_SETTINGS,
+		calendars: {},
+		taskLists: {},
+	};
 	if (!saved || typeof saved !== 'object') return s;
 	const o = saved as Record<string, unknown>;
-	for (const k of ['clientId', 'clientSecret', 'refreshToken', 'account', 'projectsFolder'] as const) {
+	for (const k of [
+		'clientId',
+		'clientSecret',
+		'refreshToken',
+		'account',
+		'projectsFolder',
+	] as const) {
 		if (typeof o[k] === 'string') s[k] = o[k];
 	}
 	for (const k of ['mirror', 'showCompletedTasks', 'hideMidnightTime'] as const) {
 		if (typeof o[k] === 'boolean') s[k] = o[k];
 	}
-	if (typeof o.syncIntervalMinutes === 'number' && o.syncIntervalMinutes >= 1) s.syncIntervalMinutes = o.syncIntervalMinutes;
-	if (typeof o.weekStart === 'string' && (WEEKDAYS as readonly string[]).includes(o.weekStart)) s.weekStart = o.weekStart as Weekday;
+	if (typeof o.syncIntervalMinutes === 'number' && o.syncIntervalMinutes >= 1)
+		s.syncIntervalMinutes = o.syncIntervalMinutes;
+	if (typeof o.weekStart === 'string' && (WEEKDAYS as readonly string[]).includes(o.weekStart))
+		s.weekStart = o.weekStart as Weekday;
 	if (o.calendars && typeof o.calendars === 'object') {
-		for (const [id, v] of Object.entries(o.calendars as Record<string, Partial<CalendarInfo>>)) {
+		for (const [id, v] of Object.entries(
+			o.calendars as Record<string, Partial<CalendarInfo>>,
+		)) {
 			if (v && typeof v.name === 'string') {
-				s.calendars[id] = { name: v.name, color: typeof v.color === 'string' ? v.color : '', enabled: v.enabled !== false };
+				s.calendars[id] = {
+					name: v.name,
+					color: typeof v.color === 'string' ? v.color : '',
+					enabled: v.enabled !== false,
+				};
 			}
 		}
 	}
@@ -97,7 +130,11 @@ export class GCalSettingTab extends PluginSettingTab {
 				type: 'group',
 				heading: 'Account',
 				items: [
-					{ name: 'Client ID', desc: 'Client ID of the desktop app OAuth client from Google Cloud.', control: { type: 'text', key: 'clientId' } },
+					{
+						name: 'Client ID',
+						desc: 'Client ID of the desktop app OAuth client from Google Cloud.',
+						control: { type: 'text', key: 'clientId' },
+					},
 					{
 						name: 'Client secret',
 						desc: "Stored in this plugin's data.json so that your other devices (including mobile) can reuse it. Google does not treat the secret of a desktop app as confidential.",
@@ -112,8 +149,14 @@ export class GCalSettingTab extends PluginSettingTab {
 							});
 						},
 					},
-					{ name: 'Sync passphrase', render: (setting) => this.renderPassphrase(setting) },
-					{ name: 'Connection', render: (setting) => this.renderConnect(setting) },
+					{
+						name: 'Sync passphrase',
+						render: (setting) => this.renderPassphrase(setting),
+					},
+					{
+						name: 'Connection',
+						render: (setting) => this.renderConnect(setting),
+					},
 				],
 			},
 			{
@@ -125,7 +168,9 @@ export class GCalSettingTab extends PluginSettingTab {
 						visible: loggedIn,
 						render: (setting: Setting) => {
 							setting.nameEl.prepend(createSpan({ cls: 'gcal-dot' }));
-							(setting.nameEl.firstElementChild as HTMLElement).setCssProps({ '--gcal-color': cal.color });
+							(setting.nameEl.firstElementChild as HTMLElement).setCssProps({
+								'--gcal-color': cal.color,
+							});
 							setting.addToggle((t) =>
 								t.setValue(cal.enabled).onChange(async (v) => {
 									const target = s.calendars[id];
@@ -160,13 +205,21 @@ export class GCalSettingTab extends PluginSettingTab {
 				type: 'group',
 				heading: 'Tasks',
 				items: [
-					{ name: 'Mirror task notes to Google Tasks', desc: 'When off, the Google Tasks API is never called.', control: { type: 'toggle', key: 'mirror' } },
+					{
+						name: 'Mirror task notes to Google Tasks',
+						desc: 'When off, the Google Tasks API is never called.',
+						control: { type: 'toggle', key: 'mirror' },
+					},
 					{
 						name: 'Projects folder',
 						desc: 'Each subfolder is a project. Task notes live in <project>/tasks/ and mirror to a Google Tasks list named after the project.',
 						control: { type: 'folder', key: 'projectsFolder' },
 					},
-					{ name: 'Show completed tasks', desc: 'Also draw tasks whose status is done on the calendar.', control: { type: 'toggle', key: 'showCompletedTasks' } },
+					{
+						name: 'Show completed tasks',
+						desc: 'Also draw tasks whose status is done on the calendar.',
+						control: { type: 'toggle', key: 'showCompletedTasks' },
+					},
 				],
 			},
 			{
@@ -175,7 +228,13 @@ export class GCalSettingTab extends PluginSettingTab {
 				items: [
 					{
 						name: 'Week starts on',
-						control: { type: 'dropdown', key: 'weekStart', options: Object.fromEntries(WEEKDAYS.map((d) => [d, d.charAt(0).toUpperCase() + d.slice(1)])) },
+						control: {
+							type: 'dropdown',
+							key: 'weekStart',
+							options: Object.fromEntries(
+								WEEKDAYS.map((d) => [d, d.charAt(0).toUpperCase() + d.slice(1)]),
+							),
+						},
 					},
 					{
 						name: 'Hide midnight start times',
@@ -188,12 +247,27 @@ export class GCalSettingTab extends PluginSettingTab {
 				type: 'group',
 				heading: 'Sync',
 				items: [
-					{ name: 'Sync interval', desc: 'Minutes between background syncs.', control: { type: 'number', key: 'syncIntervalMinutes', min: 1, step: 1 } },
+					{
+						name: 'Sync interval',
+						desc: 'Minutes between background syncs.',
+						control: {
+							type: 'number',
+							key: 'syncIntervalMinutes',
+							min: 1,
+							step: 1,
+						},
+					},
 					{
 						name: 'Last sync',
 						render: (setting) => {
 							const st = this.plugin.status;
-							setting.setDesc(st.lastError ? `Failed: ${st.lastError}` : st.lastSyncAt ? fmtDateTime(st.lastSyncAt) : 'Never');
+							setting.setDesc(
+								st.lastError
+									? `Failed: ${st.lastError}`
+									: st.lastSyncAt
+										? fmtDateTime(st.lastSyncAt)
+										: 'Never',
+							);
 						},
 					},
 				],
@@ -219,14 +293,18 @@ export class GCalSettingTab extends PluginSettingTab {
 		let value = '';
 		row.addText((t) => {
 			t.inputEl.type = 'password';
-			t.setPlaceholder(auth.passphrase && !auth.locked ? '••••••••' : 'Passphrase').onChange((v) => (value = v));
+			t.setPlaceholder(auth.passphrase && !auth.locked ? '••••••••' : 'Passphrase').onChange(
+				(v) => (value = v),
+			);
 		});
 		row.addButton((b) => {
 			b.setButtonText(auth.locked ? 'Unlock' : 'Set').onClick(async () => {
 				b.setDisabled(true);
 				try {
 					await auth.setPassphrase(value);
-					new Notice(auth.loggedIn ? 'Login encrypted with the passphrase.' : 'Passphrase set.');
+					new Notice(
+						auth.loggedIn ? 'Login encrypted with the passphrase.' : 'Passphrase set.',
+					);
 				} catch (e) {
 					new Notice(errorMessage(e));
 				}
@@ -239,7 +317,9 @@ export class GCalSettingTab extends PluginSettingTab {
 		const { plugin } = this;
 		const s = plugin.settings;
 		if (s.refreshToken) {
-			row.setDesc(`Connected as ${s.account || 'Google account'}.${plugin.auth.locked ? ' Enter the sync passphrase above to use it on this device.' : ''}`);
+			row.setDesc(
+				`Connected as ${s.account || 'Google account'}.${plugin.auth.locked ? ' Enter the sync passphrase above to use it on this device.' : ''}`,
+			);
 			row.addButton((b) =>
 				b.setButtonText('Log out').onClick(async () => {
 					b.setDisabled(true);
@@ -250,16 +330,24 @@ export class GCalSettingTab extends PluginSettingTab {
 			return;
 		}
 		if (!Platform.isDesktop) {
-			row.setDesc('Log in on desktop. The login is carried to this device when the vault (including the plugin folder) syncs.');
+			row.setDesc(
+				'Log in on desktop. The login is carried to this device when the vault (including the plugin folder) syncs.',
+			);
 			return;
 		}
 		if (plugin.auth.pending) {
-			row.setDesc('Finish the login in your browser. This page updates when Google redirects back.');
+			row.setDesc(
+				'Finish the login in your browser. This page updates when Google redirects back.',
+			);
 			return;
 		}
-		row.setDesc('Enter the client ID, secret and a sync passphrase, then log in. A browser window opens for Google consent.');
+		row.setDesc(
+			'Enter the client ID, secret and a sync passphrase, then log in. A browser window opens for Google consent.',
+		);
 		row.addButton((b) => {
-			b.setButtonText('Log in to Google').setCta().setDisabled(!s.clientId || !s.clientSecret || !plugin.auth.passphrase);
+			b.setButtonText('Log in to Google')
+				.setCta()
+				.setDisabled(!s.clientId || !s.clientSecret || !plugin.auth.passphrase);
 			b.onClick(async () => {
 				this.update();
 				try {

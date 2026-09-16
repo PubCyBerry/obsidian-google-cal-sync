@@ -1,6 +1,6 @@
-import { TFile, TFolder, normalizePath, type App } from 'obsidian';
+import { type App, normalizePath, TFile, TFolder } from 'obsidian';
 import type { Cache, TaskIndex } from './cache';
-import { GoogleError, type GoogleClient } from './google';
+import { type GoogleClient, GoogleError } from './google';
 
 const API = 'https://tasks.googleapis.com/tasks/v1';
 export const TASK_STATUSES = ['backlog', 'active', 'blocked', 'done'] as const;
@@ -105,10 +105,20 @@ export class TaskMirror {
 	}
 
 	async sync(): Promise<MirrorResult> {
-		const result: MirrorResult = { pushed: 0, pulled: 0, imported: 0, deleted: 0, total: 0 };
-		const root = this.app.vault.getFolderByPath(normalizePath(this.host.settings.projectsFolder));
+		const result: MirrorResult = {
+			pushed: 0,
+			pulled: 0,
+			imported: 0,
+			deleted: 0,
+			total: 0,
+		};
+		const root = this.app.vault.getFolderByPath(
+			normalizePath(this.host.settings.projectsFolder),
+		);
 		if (!root) return result;
-		const projects = root.children.filter((c): c is TFolder => c instanceof TFolder).map((f) => f.name);
+		const projects = root.children
+			.filter((c): c is TFolder => c instanceof TFolder)
+			.map((f) => f.name);
 		if (projects.length === 0) return result;
 		this.lists = null;
 		let listsChanged = false;
@@ -139,7 +149,9 @@ export class TaskMirror {
 			const listId = listOf[note.project];
 			if (!listId) continue;
 			// The metadata cache can lag behind an id this plugin just wrote; the previous index knows it.
-			const googleId = remote.has(note.googleId) ? note.googleId : (idByPath.get(note.file.path) ?? note.googleId);
+			const googleId = remote.has(note.googleId)
+				? note.googleId
+				: (idByPath.get(note.file.path) ?? note.googleId);
 			let r = googleId ? remote.get(googleId) : undefined;
 			if (r && matched.has(r.task.id)) r = undefined; // two notes claim one task: the second is re-created
 			if (!r) {
@@ -153,9 +165,13 @@ export class TaskMirror {
 			}
 			matched.add(r.task.id);
 			if (r.listId !== listId) {
-				r.task = await this.host.google.call<GoogleTask>('POST', `${API}/lists/${enc(r.listId)}/tasks/${enc(r.task.id)}/move`, {
-					query: { destinationTasklist: listId },
-				});
+				r.task = await this.host.google.call<GoogleTask>(
+					'POST',
+					`${API}/lists/${enc(r.listId)}/tasks/${enc(r.task.id)}/move`,
+					{
+						query: { destinationTasklist: listId },
+					},
+				);
 				r.listId = listId;
 				result.pushed++;
 			}
@@ -176,7 +192,10 @@ export class TaskMirror {
 					nextIndex[id] = knownPath;
 					continue;
 				}
-				await this.host.google.call('DELETE', `${API}/lists/${enc(r.listId)}/tasks/${enc(id)}`);
+				await this.host.google.call(
+					'DELETE',
+					`${API}/lists/${enc(r.listId)}/tasks/${enc(id)}`,
+				);
 				result.deleted++;
 				continue;
 			}
@@ -196,8 +215,16 @@ export class TaskMirror {
 		let pageToken: string | undefined;
 		try {
 			do {
-				const page = await this.host.google.call<{ items?: GoogleTask[]; nextPageToken?: string }>('GET', `${API}/lists/${enc(listId)}/tasks`, {
-					query: { showCompleted: true, showHidden: true, maxResults: 100, pageToken },
+				const page = await this.host.google.call<{
+					items?: GoogleTask[];
+					nextPageToken?: string;
+				}>('GET', `${API}/lists/${enc(listId)}/tasks`, {
+					query: {
+						showCompleted: true,
+						showHidden: true,
+						maxResults: 100,
+						pageToken,
+					},
 				});
 				out.push(...(page.items ?? []));
 				pageToken = page.nextPageToken;
@@ -211,12 +238,18 @@ export class TaskMirror {
 
 	private async ensureList(project: string): Promise<string> {
 		if (!this.lists) {
-			const page = await this.host.google.call<{ items?: Array<{ id: string; title: string }> }>('GET', `${API}/users/@me/lists`, { query: { maxResults: 100 } });
+			const page = await this.host.google.call<{
+				items?: Array<{ id: string; title: string }>;
+			}>('GET', `${API}/users/@me/lists`, { query: { maxResults: 100 } });
 			this.lists = page.items ?? [];
 		}
 		let list = this.lists.find((l) => l.title === project);
 		if (!list) {
-			list = await this.host.google.call<{ id: string; title: string }>('POST', `${API}/users/@me/lists`, { body: { title: project } });
+			list = await this.host.google.call<{ id: string; title: string }>(
+				'POST',
+				`${API}/users/@me/lists`,
+				{ body: { title: project } },
+			);
 			this.lists.push(list);
 		}
 		this.host.settings.taskLists[project] = list.id;
@@ -240,7 +273,9 @@ export class TaskMirror {
 	}
 
 	private insert(listId: string, note: TaskNote): Promise<GoogleTask> {
-		return this.host.google.call<GoogleTask>('POST', `${API}/lists/${enc(listId)}/tasks`, { body: this.body(note) });
+		return this.host.google.call<GoogleTask>('POST', `${API}/lists/${enc(listId)}/tasks`, {
+			body: this.body(note),
+		});
 	}
 
 	/** Field owners: note wins unless Google's `updated` is newer than the file's mtime. Only differing fields move. */
@@ -269,8 +304,13 @@ export class TaskMirror {
 				}
 			});
 			if (diff.title && t.title) {
-				const target = await this.freePath(note.file.parent?.path ?? '', t.title, note.file);
-				if (target !== note.file.path) await this.app.fileManager.renameFile(note.file, target);
+				const target = await this.freePath(
+					note.file.parent?.path ?? '',
+					t.title,
+					note.file,
+				);
+				if (target !== note.file.path)
+					await this.app.fileManager.renameFile(note.file, target);
 			}
 			return 'pulled';
 		}
@@ -281,7 +321,11 @@ export class TaskMirror {
 			patch.status = localDone ? 'completed' : 'needsAction';
 			if (!localDone) patch.completed = null;
 		}
-		r.task = await this.host.google.call<GoogleTask>('PATCH', `${API}/lists/${enc(r.listId)}/tasks/${enc(t.id)}`, { body: patch });
+		r.task = await this.host.google.call<GoogleTask>(
+			'PATCH',
+			`${API}/lists/${enc(r.listId)}/tasks/${enc(t.id)}`,
+			{ body: patch },
+		);
 		return 'pushed';
 	}
 
@@ -309,7 +353,11 @@ export class TaskMirror {
 			'',
 		];
 		const file = await this.app.vault.create(path, lines.join('\n'));
-		await this.host.google.call('PATCH', `${API}/lists/${enc(r.listId)}/tasks/${enc(r.task.id)}`, { body: { notes: this.backlink(file) } });
+		await this.host.google.call(
+			'PATCH',
+			`${API}/lists/${enc(r.listId)}/tasks/${enc(r.task.id)}`,
+			{ body: { notes: this.backlink(file) } },
+		);
 		return file.path;
 	}
 

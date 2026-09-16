@@ -31,7 +31,11 @@ export class Cache {
 	calendar(calendarId: string): CalendarCache | null {
 		const v = this.app.loadLocalStorage(PREFIX + calendarId) as Partial<CalendarCache> | null;
 		if (!v || typeof v !== 'object' || !v.events) return null;
-		return { syncToken: v.syncToken ?? '', syncedAt: v.syncedAt ?? 0, events: v.events };
+		return {
+			syncToken: v.syncToken ?? '',
+			syncedAt: v.syncedAt ?? 0,
+			events: v.events,
+		};
 	}
 
 	saveCalendar(calendarId: string, data: CalendarCache): void {

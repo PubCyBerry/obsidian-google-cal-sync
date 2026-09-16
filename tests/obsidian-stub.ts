@@ -26,7 +26,10 @@ export function getLanguage() {
 	return 'en';
 }
 export function normalizePath(p: string) {
-	return p.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
+	return p
+		.replace(/\\/g, '/')
+		.replace(/\/+/g, '/')
+		.replace(/^\/|\/$/g, '');
 }
 export function debounce<T extends (...a: unknown[]) => unknown>(fn: T) {
 	return fn;
@@ -55,7 +58,8 @@ export function parseYaml(src: string): unknown {
 }
 type Req = Record<string, unknown>;
 type Res = { status: number; text: string; headers: Record<string, string> };
-let requestUrlImpl: (req: Req) => Promise<Res> = () => Promise.reject(new Error('requestUrl not stubbed'));
+let requestUrlImpl: (req: Req) => Promise<Res> = () =>
+	Promise.reject(new Error('requestUrl not stubbed'));
 export function setRequestUrl(fn: (req: Req) => Promise<Res>) {
 	requestUrlImpl = fn;
 }
