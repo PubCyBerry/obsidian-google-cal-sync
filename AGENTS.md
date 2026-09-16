@@ -35,10 +35,11 @@ npm run dev
 npm run build
 ```
 
-## Linting
+## Linting and formatting
 
-- ESLint is preconfigured with `eslint-plugin-obsidianmd` for Obsidian-specific rules.
-- Run `npm run lint` to lint the project.
+- Two linters run side by side because neither covers the other's ground. Biome (`biome.jsonc`) formats every file and lints general JS/TS; ESLint (`eslint.config.mts`) exists for `eslint-plugin-obsidianmd`, whose 39 Obsidian-specific rules — `validate-manifest`, `no-forbidden-elements`, `prefer-create-el` and the rest — have no Biome equivalent and are what the community directory review looks at.
+- Run `npm run lint` for both, and `npm run format` to apply Biome's formatting and safe fixes.
+- Formatting follows `.editorconfig` (tabs, LF), which Biome reads directly. Quote style is single.
 - A GitHub Action automatically lints every commit on all branches.
 
 ## File & folder conventions
@@ -96,9 +97,11 @@ npm run build
 
 ## Versioning & releases
 
-- Bump `version` in `manifest.json` (SemVer) and update `versions.json` to map plugin version → minimum app version.
-- Create a GitHub release whose tag exactly matches `manifest.json`'s `version`. Do not use a leading `v`.
-- Attach `manifest.json`, `main.js`, and `styles.css` (if present) to the release as individual assets.
+- Releases are automated. Write commits as [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `feat!:`) and squash-merge pull requests so the squashed title carries the type.
+- commitlint rejects a message that breaks the convention. Git hooks are not cloned, so run `prek install && prek install -t commit-msg` once after cloning; the rules live in `commitlint.config.mjs` and the hooks in `.pre-commit-config.yaml`.
+- release-please keeps a release pull request open on `master`. Merging it bumps `package.json` and `manifest.json`, writes `CHANGELOG.md`, tags the commit and publishes the GitHub release; `.github/workflows/release-please.yml` then builds and attaches `main.js`, `manifest.json` and `styles.css`. Do not bump versions or create tags by hand.
+- Tags carry no leading `v`, so they match `manifest.json`'s `version` exactly.
+- `versions.json` maps plugin version → minimum app version and is **not** automated. Add an entry by hand only when `minAppVersion` changes; identical entries for every release serve no purpose.
 - After the initial release, follow the process to add/update your plugin in the community catalog as required.
 
 ## Security, privacy, and compliance

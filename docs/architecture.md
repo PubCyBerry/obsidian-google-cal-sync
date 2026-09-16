@@ -281,4 +281,4 @@ Task note frontmatter the plugin reads and writes: `type`, `title`, `status`, `d
 
 - `npm test`: node:test over the pure logic (settings loader, block options, event mapping, `GoogleClient` retry and errors, `CalendarSync` full/incremental/410/pagination, 412 handling) with an `obsidian` stub.
 - `tests/e2e/`: scripts run inside a development vault against a fake Google transport swapped in at the `GoogleClient.send` level, so `GoogleError` handling is the real code. They cover the whole task ruleset, the calendar write paths and the UI wiring; `login-test.js` drives the loopback server with a fake browser up to the real token endpoint.
-- GitHub Actions runs build, lint and unit tests on Node 20, 22 and 24; a tag push builds and attests the release assets.
+- GitHub Actions runs build, lint and unit tests on Node 20, 22 and 24; release-please keeps a release pull request open on `master`, and merging it tags the commit, publishes the GitHub release and attaches the attested build assets.
