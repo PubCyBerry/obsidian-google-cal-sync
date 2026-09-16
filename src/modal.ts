@@ -35,7 +35,10 @@ export class EventModal extends Modal {
 		super(plugin.app);
 		const ev = params.event;
 		const enabled = Object.entries(plugin.settings.calendars).filter(([, c]) => c.enabled);
-		this.calendarId = ev?.calendarId ?? params.calendarId ?? (enabled.find(([id]) => id === 'primary')?.[0] || enabled[0]?.[0] || '');
+		this.calendarId =
+			ev?.calendarId ??
+			params.calendarId ??
+			(enabled.find(([id]) => id === 'primary')?.[0] || enabled[0]?.[0] || '');
 		this.allDay = ev?.allDay ?? params.allDay ?? false;
 		this.title = ev?.title ?? '';
 		this.description = ev?.description ?? '';
@@ -59,7 +62,11 @@ export class EventModal extends Modal {
 		const ev = this.params.event;
 		this.modalEl.addClass('gcal-modal');
 		this.setTitle(ev ? 'Edit event' : 'New event');
-		if (ev?.recurringEventId) contentEl.createEl('p', { text: 'This is one occurrence of a repeating event. Changes apply to this occurrence only.', cls: 'gcal-modal-note' });
+		if (ev?.recurringEventId)
+			contentEl.createEl('p', {
+				text: 'This is one occurrence of a repeating event. Changes apply to this occurrence only.',
+				cls: 'gcal-modal-note',
+			});
 
 		new Setting(contentEl).setName('Title').addText((t) => {
 			t.setValue(this.title).onChange((v) => {
@@ -70,7 +77,8 @@ export class EventModal extends Modal {
 			window.setTimeout(() => t.inputEl.focus(), 0);
 		});
 		new Setting(contentEl).setName('Calendar').addDropdown((d) => {
-			for (const [id, c] of Object.entries(this.plugin.settings.calendars)) if (c.enabled || id === this.calendarId) d.addOption(id, c.name);
+			for (const [id, c] of Object.entries(this.plugin.settings.calendars))
+				if (c.enabled || id === this.calendarId) d.addOption(id, c.name);
 			d.setValue(this.calendarId).onChange((v) => {
 				this.calendarId = v;
 			});
@@ -79,15 +87,26 @@ export class EventModal extends Modal {
 		new Setting(contentEl).setName('All day').addToggle((t) =>
 			t.setValue(this.allDay).onChange((v) => {
 				this.allDay = v;
-				times.forEach((el) => el.toggleClass('is-hidden', v));
+				for (const el of times) el.toggleClass('is-hidden', v);
 				this.validate();
 			}),
 		);
 		const times: HTMLElement[] = [];
-		const dateRow = (name: string, date: string, time: string, set: (d: string, t: string) => void) => {
+		const dateRow = (
+			name: string,
+			date: string,
+			time: string,
+			set: (d: string, t: string) => void,
+		) => {
 			const row = new Setting(contentEl).setName(name);
-			const dateEl = row.controlEl.createEl('input', { type: 'date', value: date });
-			const timeEl = row.controlEl.createEl('input', { type: 'time', value: time });
+			const dateEl = row.controlEl.createEl('input', {
+				type: 'date',
+				value: date,
+			});
+			const timeEl = row.controlEl.createEl('input', {
+				type: 'time',
+				value: time,
+			});
 			timeEl.toggleClass('is-hidden', this.allDay);
 			times.push(timeEl);
 			const update = () => {
@@ -114,18 +133,22 @@ export class EventModal extends Modal {
 		const buttons = new Setting(contentEl);
 		buttons.addButton((b) => {
 			this.saveButton = b.buttonEl;
-			b.setButtonText('Save').setCta().onClick(() => void this.save());
+			b.setButtonText('Save')
+				.setCta()
+				.onClick(() => void this.save());
 		});
 		if (ev) {
 			buttons.addButton((b) => {
-				b.setButtonText('Delete').setDestructive().onClick(() => {
-					if (!this.deleteArmed) {
-						this.deleteArmed = true;
-						b.setButtonText('Click again to delete');
-						return;
-					}
-					void this.remove();
-				});
+				b.setButtonText('Delete')
+					.setDestructive()
+					.onClick(() => {
+						if (!this.deleteArmed) {
+							this.deleteArmed = true;
+							b.setButtonText('Click again to delete');
+							return;
+						}
+						void this.remove();
+					});
 			});
 		}
 		buttons.addButton((b) => b.setButtonText('Cancel').onClick(() => this.close()));
@@ -142,12 +165,24 @@ export class EventModal extends Modal {
 		if (!this.title.trim() || !this.calendarId || !this.startDate || !this.endDate) return null;
 		if (this.allDay) {
 			if (this.endDate < this.startDate) return null;
-			return { title: this.title.trim(), allDay: true, start: this.startDate, end: addDays(this.endDate, 1), description: this.description };
+			return {
+				title: this.title.trim(),
+				allDay: true,
+				start: this.startDate,
+				end: addDays(this.endDate, 1),
+				description: this.description,
+			};
 		}
 		const s = parseLocal(this.startDate, this.startTime || '00:00');
 		const e = parseLocal(this.endDate, this.endTime || '00:00');
 		if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime()) || e < s) return null;
-		return { title: this.title.trim(), allDay: false, start: fmtLocal(s), end: fmtLocal(e), description: this.description };
+		return {
+			title: this.title.trim(),
+			allDay: false,
+			start: fmtLocal(s),
+			end: fmtLocal(e),
+			description: this.description,
+		};
 	}
 
 	private validate(): void {
