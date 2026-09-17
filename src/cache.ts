@@ -8,6 +8,7 @@ export interface CachedEvent {
 	end: string;
 	allDay: boolean;
 	description: string;
+	location: string;
 	recurringEventId: string | null;
 	etag: string;
 }

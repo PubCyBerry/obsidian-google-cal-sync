@@ -241,7 +241,7 @@ localStorage (per device):
 
 | Key | Value |
 | --- | --- |
-| `google-cal-sync:<calendarId>` | `{ syncToken, syncedAt, events: { [id]: { id, calendarId, title, start, end, allDay, description, recurringEventId, etag } } }` |
+| `google-cal-sync:<calendarId>` | `{ syncToken, syncedAt, events: { [id]: { id, calendarId, title, start, end, allDay, description, location, recurringEventId, etag } } }` |
 | `google-cal-sync:tasks` | `{ [googleTaskId]: notePath }` from the previous mirror run |
 
 Task note frontmatter the plugin reads and writes: `type`, `title`, `status`, `due`, `google_task_id`. Nothing else in the note is touched.

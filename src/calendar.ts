@@ -18,6 +18,7 @@ export interface GoogleEvent {
 	status?: string;
 	summary?: string;
 	description?: string;
+	location?: string;
 	start?: GoogleTime;
 	end?: GoogleTime;
 	recurringEventId?: string;
@@ -84,6 +85,7 @@ export function fromGoogle(calendarId: string, e: GoogleEvent): CachedEvent {
 		end: (allDay ? e.end?.date : e.end?.dateTime) ?? '',
 		allDay,
 		description: e.description ?? '',
+		location: e.location ?? '',
 		recurringEventId: e.recurringEventId ?? null,
 		etag: e.etag ?? '',
 	};

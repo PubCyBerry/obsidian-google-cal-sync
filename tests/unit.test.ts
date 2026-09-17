@@ -58,6 +58,7 @@ test('event mapping between Google and the cache', () => {
 		start: { date: '2026-09-01' },
 		end: { date: '2026-09-03' },
 		etag: '"e"',
+		location: '본사 3층 회의실',
 	});
 	assert.deepEqual(allDay, {
 		id: '1',
@@ -67,6 +68,7 @@ test('event mapping between Google and the cache', () => {
 		end: '2026-09-03',
 		allDay: true,
 		description: '',
+		location: '본사 3층 회의실',
 		recurringEventId: null,
 		etag: '"e"',
 	});
@@ -79,6 +81,7 @@ test('event mapping between Google and the cache', () => {
 	});
 	assert.equal(timed.allDay, false);
 	assert.equal(timed.recurringEventId, 'r');
+	assert.equal(timed.location, '');
 	assert.deepEqual(
 		toGoogle(
 			{
