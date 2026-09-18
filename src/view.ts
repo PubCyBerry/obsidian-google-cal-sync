@@ -262,7 +262,9 @@ export class GCalBlock extends MarkdownRenderChild {
 				this.calendar?.refetchEvents();
 			};
 		}
-		this.pill = this.toolbar.createSpan({ cls: 'gcal-pill' });
+		// Inside the toggle wrap flow rather than beside it: as its own flex item the pill shrinks the
+		// toggle row and pushes a button onto a new line whenever the status text appears.
+		this.pill = toggles.createSpan({ cls: 'gcal-pill' });
 		this.renderPill();
 	}
 

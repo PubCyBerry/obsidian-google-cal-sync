@@ -181,6 +181,7 @@
 }
 
 .gcal .gcal-pill {
+	margin-left: auto;
 	font-size: var(--font-ui-smaller);
 	border-radius: var(--radius-s);
 	padding: 0 6px;

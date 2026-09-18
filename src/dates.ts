@@ -53,12 +53,11 @@ export function addDays(date: string, days: number): string {
 	return fmtDate(d);
 }
 
-/** "3 minutes ago", "2 hours ago", "5 days ago". */
+/** "3m ago", "2h ago", "5d ago". */
 export function fromNow(ms: number, now = Date.now()): string {
 	const s = Math.max(0, Math.round((now - ms) / 1000));
-	const unit = (n: number, name: string) => `${n} ${name}${n === 1 ? '' : 's'} ago`;
 	if (s < 90) return 'just now';
-	if (s < 3600) return unit(Math.round(s / 60), 'minute');
-	if (s < 86400) return unit(Math.round(s / 3600), 'hour');
-	return unit(Math.round(s / 86400), 'day');
+	if (s < 3600) return `${Math.round(s / 60)}m ago`;
+	if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+	return `${Math.round(s / 86400)}d ago`;
 }

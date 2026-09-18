@@ -375,9 +375,9 @@ test('date helpers: date-only parsing stays local, day arithmetic crosses months
 	assert.equal(fmtTime(d), '10:05');
 	assert.match(fmtLocal(d), /^2026-09-10T10:05:00[+-]\d{2}:\d{2}$/);
 	assert.ok(Number.isNaN(parseLocal('2026-09-10', '').getTime()));
-	assert.equal(fromNow(Date.now() - 2 * 3_600_000), '2 hours ago');
+	assert.equal(fromNow(Date.now() - 2 * 3_600_000), '2h ago');
 	assert.equal(fromNow(Date.now() - 30_000), 'just now');
-	assert.equal(fromNow(Date.now() - 86_400_000), '1 day ago');
+	assert.equal(fromNow(Date.now() - 86_400_000), '1d ago');
 });
 
 test('calendar colours map from the classic API palette to the modern one', async () => {
