@@ -224,6 +224,7 @@ Existence rules: a note without an id gets a task; a task without a note is impo
   "projectsFolder": "10-projects",
   "taskLists": { "<project folder name>": "<Google list id>" },
   "showCompletedTasks": false,
+  "hideMidnightTime": true,
   "syncIntervalMinutes": 5,
   "weekStart": "monday"
 }
