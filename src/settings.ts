@@ -349,9 +349,12 @@ export class GCalSettingTab extends PluginSettingTab {
 				.setCta()
 				.setDisabled(!s.clientId || !s.clientSecret || !plugin.auth.passphrase);
 			b.onClick(async () => {
-				this.update();
 				try {
-					await plugin.auth.login();
+					// login() sets `pending` before its first await, so redraw after starting it
+					// to show the "finish in your browser" notice while Google has the user.
+					const done = plugin.auth.login();
+					this.update();
+					await done;
 					new Notice(`Connected to Google: ${s.account}`);
 				} catch (e) {
 					new Notice(`Login failed: ${errorMessage(e)}`);
