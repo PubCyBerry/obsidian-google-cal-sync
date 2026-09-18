@@ -2,6 +2,19 @@
 
 All notable changes to this plugin are recorded here. Entries below 1.3.0 were written by hand; from 1.3.0 on, [release-please](https://github.com/googleapis/release-please) generates them from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow [Semantic Versioning](https://semver.org/), and each one has a matching GitHub release tag that Obsidian installs from.
 
+## [1.3.0](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.2.0...1.3.0) (2026-09-18)
+
+
+### Features
+
+* keep the event location from Google ([0d21df9](https://github.com/PubCyBerry/obsidian-google-cal-sync/commit/0d21df983e4a88191ce730a80e97059eb02fc9ae))
+
+
+### Bug Fixes
+
+* keep the status pill from reflowing the toolbar ([caf333e](https://github.com/PubCyBerry/obsidian-google-cal-sync/commit/caf333e957fa67dd65121c44412ffe6ec658a849))
+* redraw the settings tab while the browser login is pending ([e411a52](https://github.com/PubCyBerry/obsidian-google-cal-sync/commit/e411a5215c971bb30d36ececd99eda5a681eaef9))
+
 ## [1.2.0](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.1.0...1.2.0) (2026-09-11)
 
 ### Features
