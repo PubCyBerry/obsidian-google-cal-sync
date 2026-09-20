@@ -1,7 +1,7 @@
 {
 	"id": "google-cal-sync",
 	"name": "Google Calendar Tasks Sync",
-	"version": "1.4.1",
+	"version": "1.4.2",
 	"minAppVersion": "1.13.7",
 	"description": "Two-way Google Calendar in a code block, plus task notes mirrored to Google Tasks.",
 	"author": "PubCyBerry",

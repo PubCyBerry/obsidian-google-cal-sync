@@ -2,6 +2,13 @@
 
 All notable changes to this plugin are recorded here. Entries below 1.3.0 were written by hand; from 1.3.0 on, [release-please](https://github.com/googleapis/release-please) generates them from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow [Semantic Versioning](https://semver.org/), and each one has a matching GitHub release tag that Obsidian installs from.
 
+## [1.4.2](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.4.1...1.4.2) (2026-09-20)
+
+
+### Bug Fixes
+
+* make the list view day headings readable ([3936eaa](https://github.com/PubCyBerry/obsidian-google-cal-sync/commit/3936eaacb4a6828b10dbeb6a3f87663e761e67a3))
+
 ## [1.4.1](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.4.0...1.4.1) (2026-09-20)
 
 
