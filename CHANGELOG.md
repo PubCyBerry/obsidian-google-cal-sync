@@ -2,6 +2,13 @@
 
 All notable changes to this plugin are recorded here. Entries below 1.3.0 were written by hand; from 1.3.0 on, [release-please](https://github.com/googleapis/release-please) generates them from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow [Semantic Versioning](https://semver.org/), and each one has a matching GitHub release tag that Obsidian installs from.
 
+## [1.4.1](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.4.0...1.4.1) (2026-09-20)
+
+
+### Bug Fixes
+
+* keep the phone list from scrolling sideways ([1407b1b](https://github.com/PubCyBerry/obsidian-google-cal-sync/commit/1407b1bab097962af50d165c30790a449377def2))
+
 ## [1.4.0](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.3.0...1.4.0) (2026-09-20)
 
 
