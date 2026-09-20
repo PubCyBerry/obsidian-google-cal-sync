@@ -238,18 +238,50 @@
 	border-radius: var(--radius-s);
 }
 
+/* The day heading is the boundary between groups, so it has to read louder than the rows under it.
+   The weekday leads at full size and weight; the date follows, smaller and muted, so the two are
+   told apart at a glance instead of running together as one grey line. */
 .gcal .fc .fc-list-day-cushion {
-	padding: var(--size-2-2) var(--size-4-2);
+	padding: var(--size-4-2) var(--size-4-3);
+	background: var(--background-secondary);
+}
+
+.gcal .fc .fc-list-day-text {
+	font-size: var(--font-ui-medium);
+	font-weight: var(--font-bold);
+	color: var(--text-normal);
+}
+
+.gcal .fc .fc-list-day-side-text {
 	font-size: var(--font-ui-smaller);
-	font-weight: var(--font-semibold);
+	font-weight: var(--font-normal);
+	color: var(--text-muted);
+}
+
+.gcal .fc .fc-day-today .fc-list-day-cushion {
+	background: var(--background-modifier-hover);
+	box-shadow: inset 3px 0 0 0 var(--interactive-accent);
+}
+
+.gcal .fc .fc-day-today .fc-list-day-text {
+	color: var(--text-accent);
 }
 
 .gcal .fc .fc-list-event td {
 	padding: var(--size-2-2) var(--size-4-2);
 }
 
+/* Inside a row the title is what you look for, so the time steps back a level. */
+.gcal .fc .fc-list-event-time {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.gcal .fc .fc-list-event-title,
 .gcal .fc .fc-list-event-title a {
 	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
 }
 
 .gcal .fc .fc-list-empty {

@@ -194,6 +194,8 @@ export class GCalBlock extends MarkdownRenderChild {
 				// column wide enough to squeeze the title out on a phone. 24-hour time keeps it narrow.
 				listWeek: {
 					eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+					// The year is the same on every heading of a week, so it only crowds the date.
+					listDaySideFormat: { month: 'long', day: 'numeric' },
 				},
 			},
 			firstDay: WEEKDAYS.indexOf(s.weekStart),
