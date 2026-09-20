@@ -189,6 +189,13 @@ export class GCalBlock extends MarkdownRenderChild {
 				center: '',
 				right: 'listWeek,timeGridDay,timeGridWeek,dayGridMonth',
 			},
+			views: {
+				// The list puts the time in its own column, and a locale that spells out AM/PM makes that
+				// column wide enough to squeeze the title out on a phone. 24-hour time keeps it narrow.
+				listWeek: {
+					eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+				},
+			},
 			firstDay: WEEKDAYS.indexOf(s.weekStart),
 			height: this.opts.height === 'auto' ? 'auto' : this.opts.height,
 			slotMinTime: '07:00:00',

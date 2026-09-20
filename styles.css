@@ -269,6 +269,17 @@
 	min-width: 700px;
 }
 
+/* The list fits the block's width, so it must not scroll sideways: a horizontal swipe inside the
+   calendar is how Obsidian opens its side panel on a phone, and a scroller there would swallow it. */
+.is-mobile .gcal:has(.fc-list) {
+	overflow-x: hidden;
+}
+
+/* A long unbroken word in a title would otherwise push the table past the block. */
+.is-mobile .gcal .fc .fc-list-event-title {
+	overflow-wrap: anywhere;
+}
+
 /* Touch targets: WCAG 2.5.8 asks for 24px, and a row that holds a checkbox needs the room anyway. */
 .is-mobile .gcal .fc .fc-list-event td {
 	padding-block: var(--size-4-2);
