@@ -2,6 +2,13 @@
 
 All notable changes to this plugin are recorded here. Entries below 1.3.0 were written by hand; from 1.3.0 on, [release-please](https://github.com/googleapis/release-please) generates them from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow [Semantic Versioning](https://semver.org/), and each one has a matching GitHub release tag that Obsidian installs from.
 
+## [1.4.0](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.3.0...1.4.0) (2026-09-20)
+
+
+### Features
+
+* add a list view for phones ([7c2efd3](https://github.com/PubCyBerry/obsidian-google-cal-sync/commit/7c2efd3d5f2412e4d2374127a88cbdf7c28ee200))
+
 ## [1.3.0](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.2.0...1.3.0) (2026-09-18)
 
 
