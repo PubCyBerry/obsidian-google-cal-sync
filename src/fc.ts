@@ -3,4 +3,5 @@ export { Calendar } from '@fullcalendar/core';
 export { default as allLocales } from '@fullcalendar/core/locales-all';
 export { default as dayGridPlugin } from '@fullcalendar/daygrid';
 export { default as interactionPlugin } from '@fullcalendar/interaction';
+export { default as listPlugin } from '@fullcalendar/list';
 export { default as timeGridPlugin } from '@fullcalendar/timegrid';

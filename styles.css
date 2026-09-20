@@ -20,6 +20,7 @@
 	--fc-now-indicator-color: var(--color-red);
 	--fc-more-link-bg-color: var(--background-secondary);
 	--fc-more-link-text-color: var(--text-muted);
+	--fc-list-event-hover-bg-color: var(--background-modifier-hover);
 	--fc-small-font-size: var(--font-ui-smaller);
 	font-size: var(--font-ui-small);
 	position: relative;
@@ -232,7 +233,33 @@
 	padding: var(--size-4-2);
 }
 
-/* Mobile: the month grid keeps a readable width and the block scrolls sideways. */
+/* List view: the one view that fits a phone, so it carries no minimum width. */
+.gcal .fc .fc-list {
+	border-radius: var(--radius-s);
+}
+
+.gcal .fc .fc-list-day-cushion {
+	padding: var(--size-2-2) var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-semibold);
+}
+
+.gcal .fc .fc-list-event td {
+	padding: var(--size-2-2) var(--size-4-2);
+}
+
+.gcal .fc .fc-list-event-title a {
+	color: var(--text-normal);
+}
+
+.gcal .fc .fc-list-empty {
+	background: none;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+/* Mobile: the month and week grids keep a readable width and the block scrolls sideways.
+   The list view is exempt, which is why phones open on it. */
 .is-mobile .gcal {
 	overflow-x: auto;
 }
@@ -240,4 +267,18 @@
 .is-mobile .gcal .fc-dayGridMonth-view,
 .is-mobile .gcal .fc-timeGridWeek-view {
 	min-width: 700px;
+}
+
+/* Touch targets: WCAG 2.5.8 asks for 24px, and a row that holds a checkbox needs the room anyway. */
+.is-mobile .gcal .fc .fc-list-event td {
+	padding-block: var(--size-4-2);
+}
+
+.is-mobile .gcal .gcal-task-check {
+	width: 24px;
+	height: 24px;
+}
+
+.is-mobile .gcal .fc .fc-button {
+	padding: var(--size-4-1) var(--size-4-2);
 }

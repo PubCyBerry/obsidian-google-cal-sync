@@ -17,6 +17,7 @@ const VIEWS = {
 	month: 'dayGridMonth',
 	week: 'timeGridWeek',
 	day: 'timeGridDay',
+	list: 'listWeek',
 } as const;
 
 export interface BlockOptions {
@@ -42,7 +43,7 @@ export function parseOptions(source: string): BlockOptions | string {
 	};
 	if (o.view !== undefined) {
 		if (typeof o.view !== 'string' || !(o.view in VIEWS))
-			return 'gcal: `view` must be one of month, week, day';
+			return 'gcal: `view` must be one of month, week, day, list';
 		opts.view = o.view as BlockOptions['view'];
 	}
 	if (o.height !== undefined) {
@@ -177,14 +178,16 @@ export class GCalBlock extends MarkdownRenderChild {
 		if (!this.containerEl.isConnected && !this.containerEl.parentElement) return;
 		const s = this.plugin.settings;
 		this.calendar = new fc.Calendar(calEl, {
-			plugins: [fc.dayGridPlugin, fc.timeGridPlugin, fc.interactionPlugin],
+			plugins: [fc.dayGridPlugin, fc.timeGridPlugin, fc.listPlugin, fc.interactionPlugin],
 			locales: fc.allLocales,
 			locale: getLanguage(),
-			initialView: VIEWS[this.opts.view],
+			// A phone is too narrow for the month and week grids, which need about 700px to stay readable.
+			// Start on the list there whatever the block asks for; the toolbar still switches to any view.
+			initialView: Platform.isPhone ? VIEWS.list : VIEWS[this.opts.view],
 			headerToolbar: {
 				left: 'today prev,next title',
 				center: '',
-				right: 'timeGridDay,timeGridWeek,dayGridMonth',
+				right: 'listWeek,timeGridDay,timeGridWeek,dayGridMonth',
 			},
 			firstDay: WEEKDAYS.indexOf(s.weekStart),
 			height: this.opts.height === 'auto' ? 'auto' : this.opts.height,

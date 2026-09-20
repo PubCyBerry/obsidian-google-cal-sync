@@ -46,6 +46,12 @@ test('parseOptions validates each option', () => {
 		calendars: ['a', 'b'],
 		tasks: false,
 	});
+	assert.deepEqual(parseOptions('view: list'), {
+		view: 'list',
+		height: 'auto',
+		calendars: [],
+		tasks: true,
+	});
 	assert.match(parseOptions('view: year') as string, /view/);
 	assert.match(parseOptions('tasks: yes') as string, /tasks/);
 	assert.match(parseOptions('calendars: 3') as string, /calendars/);

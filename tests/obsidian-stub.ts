@@ -20,7 +20,7 @@ export class MarkdownRenderChild {
 }
 export class PluginSettingTab {}
 export class Setting {}
-export const Platform = { isDesktop: true, isMobile: false };
+export const Platform = { isDesktop: true, isMobile: false, isPhone: false };
 export const moment = () => ({ format: () => '' });
 export function getLanguage() {
 	return 'en';
