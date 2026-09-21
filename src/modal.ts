@@ -24,6 +24,7 @@ export class EventModal extends Modal {
 	private endDate = '';
 	private endTime = '10:00';
 	private description = '';
+	private location = '';
 	private deleteArmed = false;
 	private busy = false;
 
@@ -42,6 +43,7 @@ export class EventModal extends Modal {
 		this.allDay = ev?.allDay ?? params.allDay ?? false;
 		this.title = ev?.title ?? '';
 		this.description = ev?.description ?? '';
+		this.location = ev?.location ?? '';
 		const start = ev?.start ?? params.start ?? fmtLocal(new Date());
 		const end = ev?.end ?? params.end ?? '';
 		this.startDate = fmtDate(parseDate(start));
@@ -124,6 +126,11 @@ export class EventModal extends Modal {
 			this.endDate = d;
 			this.endTime = t;
 		});
+		new Setting(contentEl).setName('Location').addText((t) =>
+			t.setValue(this.location).onChange((v) => {
+				this.location = v;
+			}),
+		);
 		new Setting(contentEl).setName('Notes').addTextArea((t) =>
 			t.setValue(this.description).onChange((v) => {
 				this.description = v;
@@ -171,6 +178,7 @@ export class EventModal extends Modal {
 				start: this.startDate,
 				end: addDays(this.endDate, 1),
 				description: this.description,
+				location: this.location.trim(),
 			};
 		}
 		const s = parseLocal(this.startDate, this.startTime || '00:00');
@@ -182,6 +190,7 @@ export class EventModal extends Modal {
 			start: fmtLocal(s),
 			end: fmtLocal(e),
 			description: this.description,
+			location: this.location.trim(),
 		};
 	}
 

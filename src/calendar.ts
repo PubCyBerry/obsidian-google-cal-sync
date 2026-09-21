@@ -44,6 +44,7 @@ export interface EventInput {
 	end: string;
 	allDay: boolean;
 	description: string;
+	location: string;
 }
 
 export async function listCalendars(g: GoogleClient): Promise<CalendarListEntry[]> {
@@ -96,6 +97,7 @@ export function toGoogle(input: Partial<EventInput>, nullOthers: boolean): Recor
 	const body: Record<string, unknown> = {};
 	if (input.title !== undefined) body.summary = input.title;
 	if (input.description !== undefined) body.description = input.description;
+	if (input.location !== undefined) body.location = input.location;
 	const time = (v: string, allDay: boolean): GoogleTime =>
 		allDay
 			? nullOthers
