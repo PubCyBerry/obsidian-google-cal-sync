@@ -25,17 +25,16 @@ Google calls this **Google Auth Platform** (older UI: OAuth consent screen).
 
 1. [Branding](https://console.cloud.google.com/auth/branding): app name (anything, e.g. `Google Calendar Tasks Sync`), support email, developer contact.
 2. [Audience](https://console.cloud.google.com/auth/audience): choose **External** and add your own Gmail address under **Test users**. Workspace accounts may choose **Internal** and skip test users.
-3. [Data access](https://console.cloud.google.com/auth/scopes): add these three scopes and save.
+3. [Data access](https://console.cloud.google.com/auth/scopes): add these two scopes and save.
 
    ```text
-   https://www.googleapis.com/auth/calendar.calendarlist.readonly
-   https://www.googleapis.com/auth/calendar.events
+   https://www.googleapis.com/auth/calendar
    https://www.googleapis.com/auth/tasks
    ```
 
-   The plugin asks for exactly these: the list of your calendars, read and write access to events, and tasks. It never asks for the full `calendar` scope, so it cannot share, delete or reconfigure a calendar.
+   The plugin asks for your calendars and their events, and for tasks. It calls only `calendarList.list` and `events.*`, so sharing, calendar settings and calendar deletion stay untouched even though the scope would allow them.
 
-Done when your address is a test user and the three scopes are listed.
+Done when your address is a test user and the two scopes are listed.
 
 ## 3. Google Cloud: the Desktop app client
 

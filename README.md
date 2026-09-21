@@ -20,7 +20,7 @@ A `gcal` code block that turns into your **Google Calendar** (all calendars, mon
 You bring your own Google Cloud OAuth client, so nothing goes through a third-party server. The short version follows; the [setup guide](docs/setup-guide.md) has every click.
 
 1. In [Google Cloud Console](https://console.cloud.google.com/) create or pick a project, then enable **Google Calendar API** and **Google Tasks API**.
-2. Under **Google Auth Platform**, configure the consent screen (External), add yourself as a test user, and add the scopes `https://www.googleapis.com/auth/calendar.calendarlist.readonly`, `https://www.googleapis.com/auth/calendar.events` and `https://www.googleapis.com/auth/tasks`.
+2. Under **Google Auth Platform**, configure the consent screen (External), add yourself as a test user, and add the scopes `https://www.googleapis.com/auth/calendar` and `https://www.googleapis.com/auth/tasks`.
 3. Create an OAuth client of type **Desktop app**. Copy its Client ID and Client secret.
 4. In Obsidian → Settings → Google Calendar Tasks Sync, paste both values, set a **Sync passphrase** (it encrypts the login before it is written to disk) and click **Log in to Google**. A browser window opens; approve both permissions. The browser returns to `http://127.0.0.1:<port>` and the plugin stores the encrypted refresh token.
 5. Put a code block in any note:
@@ -80,7 +80,7 @@ Obsidian Mobile cannot run the local login server, so log in on desktop. The enc
 ## Network use and data storage (please read)
 
 - The plugin talks only to Google: `accounts.google.com` and `oauth2.googleapis.com` for OAuth, `www.googleapis.com/calendar/v3` for events, and `tasks.googleapis.com/tasks/v1` for tasks. No other server, no telemetry.
-- Permissions requested from Google: `calendar.calendarlist.readonly` (list your calendars), `calendar.events` (read and write events) and `tasks`. The plugin cannot share, delete or reconfigure a calendar.
+- Permissions requested from Google: `calendar` (your calendars and their events) and `tasks`. The plugin itself only lists calendars and reads and writes events and tasks; it never calls the sharing, settings or calendar-deletion endpoints.
 - Your OAuth client ID and client secret are stored in plain text in `.obsidian/plugins/google-cal-sync/data.json`. Google does not treat the secret of a desktop app as confidential, and both are needed on every device to refresh the access token.
 - The **refresh token is stored encrypted in the same file**, with a key derived from your sync passphrase (PBKDF2-SHA256, 600,000 iterations, AES-256-GCM). Your vault sync therefore carries only ciphertext. Each device keeps the passphrase in Obsidian's keychain (Settings → Keychain, encrypted by the operating system) and decrypts the token into memory only. A login stored by a version before 1.2.0 stays in plain text until you set a passphrase; the settings tab tells you so.
 - Calendar events are cached per device in Obsidian's local storage (not in notes). `Clear cache` removes it; `Log out` revokes the token at Google and removes it too. If you suspect a copy of `data.json` leaked together with the passphrase, remove the app under [Third-party apps & services](https://myaccount.google.com/connections) in your Google account, which invalidates the token immediately.

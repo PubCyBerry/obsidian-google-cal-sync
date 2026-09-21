@@ -67,13 +67,7 @@
 			'offline+consent',
 		);
 		const scope = q.get('scope');
-		assert(
-			scope.includes('auth/calendar.calendarlist.readonly') &&
-				scope.includes('auth/calendar.events') &&
-				scope.includes('auth/tasks'),
-			'scopes',
-		);
-		assert(!/auth\/calendar(\s|$)/.test(scope), 'no full calendar scope');
+		assert(/auth\/calendar(\s|$)/.test(scope) && scope.includes('auth/tasks'), 'scopes');
 		assert(state.length >= 16, 'state');
 		assert(plugin.auth.pending === true, 'pending while waiting');
 		// wrong state → 404, ignored, the login keeps waiting
