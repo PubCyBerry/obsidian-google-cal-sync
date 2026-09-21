@@ -119,6 +119,11 @@ test('event mapping between Google and the cache', () => {
 		},
 	);
 	assert.deepEqual(toGoogle({ description: '' }, true), { description: '' });
+	assert.deepEqual(toGoogle({ location: '본사 3층 회의실' }, true), {
+		location: '본사 3층 회의실',
+	});
+	assert.deepEqual(toGoogle({ location: '' }, true), { location: '' });
+	assert.deepEqual(toGoogle({ title: 'x' }, true), { summary: 'x' });
 });
 
 test('crypto: passphrase round trip, wrong passphrase rejected, fresh salt and IV each time', async () => {
