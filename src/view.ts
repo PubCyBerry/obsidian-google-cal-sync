@@ -219,6 +219,10 @@ export class GCalBlock extends MarkdownRenderChild {
 					allDay: info.allDay,
 				});
 			},
+			// The stylesheet needs to know when the list is showing. A `:has()` selector would do it,
+			// but the community review flags that rule for broad style invalidation, so mark the root here.
+			datesSet: (info) =>
+				this.containerEl.toggleClass('is-list', info.view.type === VIEWS.list),
 			eventClick: (info) => this.onEventClick(info),
 			eventDrop: (info) => void this.onMove(info),
 			eventResize: (info) => void this.onMove(info),

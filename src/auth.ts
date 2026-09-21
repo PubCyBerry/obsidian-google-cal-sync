@@ -5,9 +5,9 @@ import type GCalSync from './main';
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const REVOKE_URL = 'https://oauth2.googleapis.com/revoke';
-// The narrowest scopes that cover calendarList.list and events.*: no calendar sharing, settings or deletion.
-const SCOPES =
-	'https://www.googleapis.com/auth/calendar.calendarlist.readonly https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/tasks';
+// Full calendar and tasks access, as before 1.2.0. 1.2.0 had narrowed this to the calendar list
+// and events; the owner asked for the wider scope back in 1.6.0.
+const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks';
 const LOGIN_TIMEOUT_MS = 120_000;
 /** Id of the sync passphrase in this device's Obsidian keychain (Settings → Keychain). Never leaves the device. */
 const PASSPHRASE_ID = 'google-cal-sync-passphrase';
