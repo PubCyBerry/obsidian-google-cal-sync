@@ -2,6 +2,13 @@
 
 All notable changes to this plugin are recorded here. Entries below 1.3.0 were written by hand; from 1.3.0 on, [release-please](https://github.com/googleapis/release-please) generates them from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow [Semantic Versioning](https://semver.org/), and each one has a matching GitHub release tag that Obsidian installs from.
 
+## [1.5.0](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.4.2...1.5.0) (2026-09-21)
+
+
+### Features
+
+* let the event modal edit the location ([#5](https://github.com/PubCyBerry/obsidian-google-cal-sync/issues/5)) ([ad1ed44](https://github.com/PubCyBerry/obsidian-google-cal-sync/commit/ad1ed444f275c13d5c112f78f2cf3d19c6563065))
+
 ## [1.4.2](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.4.1...1.4.2) (2026-09-20)
 
 
