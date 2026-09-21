@@ -2,6 +2,13 @@
 
 All notable changes to this plugin are recorded here. Entries below 1.3.0 were written by hand; from 1.3.0 on, [release-please](https://github.com/googleapis/release-please) generates them from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow [Semantic Versioning](https://semver.org/), and each one has a matching GitHub release tag that Obsidian installs from.
 
+## [1.6.0](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.5.0...1.6.0) (2026-09-21)
+
+
+### Features
+
+* request the full calendar scope again, and drop the :has selector ([#7](https://github.com/PubCyBerry/obsidian-google-cal-sync/issues/7)) ([0b15480](https://github.com/PubCyBerry/obsidian-google-cal-sync/commit/0b15480e7ecfec5473d07a9617d39e17995d3ce2))
+
 ## [1.5.0](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.4.2...1.5.0) (2026-09-21)
 
 
