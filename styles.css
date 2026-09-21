@@ -302,8 +302,9 @@
 }
 
 /* The list fits the block's width, so it must not scroll sideways: a horizontal swipe inside the
-   calendar is how Obsidian opens its side panel on a phone, and a scroller there would swallow it. */
-.is-mobile .gcal:has(.fc-list) {
+   calendar is how Obsidian opens its side panel on a phone, and a scroller there would swallow it.
+   `is-list` is set on the root by view.ts whenever the list view is showing. */
+.is-mobile .gcal.is-list {
 	overflow-x: hidden;
 }
 
