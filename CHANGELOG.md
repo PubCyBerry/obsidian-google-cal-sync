@@ -2,6 +2,13 @@
 
 All notable changes to this plugin are recorded here. Entries below 1.3.0 were written by hand; from 1.3.0 on, [release-please](https://github.com/googleapis/release-please) generates them from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow [Semantic Versioning](https://semver.org/), and each one has a matching GitHub release tag that Obsidian installs from.
 
+## [1.7.0](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.6.1...1.7.0) (2026-10-09)
+
+
+### Features
+
+* expose an API to open the event modal from outside the calendar ([#14](https://github.com/PubCyBerry/obsidian-google-cal-sync/issues/14)) ([dc7b097](https://github.com/PubCyBerry/obsidian-google-cal-sync/commit/dc7b0970fe8fa5f2242320044143272f26d87bd6)), closes [#13](https://github.com/PubCyBerry/obsidian-google-cal-sync/issues/13)
+
 ## [1.6.1](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.6.0...1.6.1) (2026-10-09)
 
 
