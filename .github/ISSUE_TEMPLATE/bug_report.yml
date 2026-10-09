@@ -1,0 +1,94 @@
+name: Bug report
+description: Something does not work the way the README or the setup guide says.
+labels:
+    - bug
+body:
+    - type: markdown
+      attributes:
+          value: |
+              Never paste your client secret, refresh token, sync passphrase or the contents of `data.json`. Replace them with `<redacted>`.
+    - type: dropdown
+      id: area
+      attributes:
+          label: Area
+          options:
+              - Calendar display (code block or calendar view)
+              - Creating, editing, moving or deleting events
+              - Login, logout or sync passphrase
+              - Task mirroring with Google Tasks
+              - Public api (openEvent, createEvent)
+              - Settings
+              - Other
+      validations:
+          required: true
+    - type: textarea
+      id: what-happened
+      attributes:
+          label: What happened
+          description: What you saw, including any notice text or the message behind the Error pill.
+      validations:
+          required: true
+    - type: textarea
+      id: steps
+      attributes:
+          label: Steps to reproduce
+          placeholder: |
+              1. Open a note with a gcal block
+              2. Click an empty day
+              3. ...
+      validations:
+          required: true
+    - type: textarea
+      id: expected
+      attributes:
+          label: What you expected
+      validations:
+          required: true
+    - type: input
+      id: plugin-version
+      attributes:
+          label: Plugin version
+          description: Settings → Community plugins.
+          placeholder: 1.7.0
+      validations:
+          required: true
+    - type: input
+      id: obsidian-version
+      attributes:
+          label: Obsidian version
+          description: Settings → General.
+          placeholder: 1.14.4
+      validations:
+          required: true
+    - type: dropdown
+      id: devices
+      attributes:
+          label: Devices where it happens
+          multiple: true
+          options:
+              - Windows
+              - macOS
+              - Linux
+              - iPhone
+              - iPad
+              - Android phone
+              - Android tablet
+      validations:
+          required: true
+    - type: input
+      id: vault-sync
+      attributes:
+          label: Vault sync
+          description: How the vault moves between devices. The login and task notes travel with it.
+          placeholder: Obsidian Sync, iCloud, Google Drive, Syncthing, … or none
+    - type: textarea
+      id: configuration
+      attributes:
+          label: Relevant configuration
+          description: The gcal block, a task note's frontmatter, the Projects folder setting, or whatever the steps rely on.
+    - type: textarea
+      id: logs
+      attributes:
+          label: Console errors
+          description: Errors from the developer console (Ctrl+Shift+I on Windows and Linux, Cmd+Option+I on macOS).
+          render: text

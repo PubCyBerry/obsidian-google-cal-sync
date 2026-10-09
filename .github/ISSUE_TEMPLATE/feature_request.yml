@@ -1,0 +1,33 @@
+name: Feature request
+description: Something the plugin does not do yet.
+labels:
+    - enhancement
+body:
+    - type: textarea
+      id: want
+      attributes:
+          label: What you want
+      validations:
+          required: true
+    - type: textarea
+      id: why
+      attributes:
+          label: Why
+          description: What you are trying to do, and what gets in the way today.
+      validations:
+          required: true
+    - type: textarea
+      id: proposal
+      attributes:
+          label: Proposal
+          description: A setting, a command, an api call, a change to the calendar. Optional.
+    - type: textarea
+      id: done
+      attributes:
+          label: What done looks like
+          description: How you would check that it works. Optional.
+    - type: textarea
+      id: alternatives
+      attributes:
+          label: Alternatives you considered
+          description: Optional.

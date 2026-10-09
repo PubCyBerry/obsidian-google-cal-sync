@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+    - name: Setup guide
+      url: https://github.com/PubCyBerry/obsidian-google-cal-sync/blob/master/docs/setup-guide.md
+      about: Google Cloud client, login, sync passphrase and task notes, step by step.
