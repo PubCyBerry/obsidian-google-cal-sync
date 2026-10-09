@@ -7,7 +7,7 @@ import { CalendarSync, fromGoogle, type GoogleEvent, toGoogle } from '../src/cal
 import { decrypt, encrypt, isEncrypted } from '../src/crypto';
 import { GoogleClient, GoogleError } from '../src/google';
 import { DEFAULT_SETTINGS, type GCalSettings, loadSettings } from '../src/settings';
-import { safeFileName } from '../src/tasks';
+import { backlinkPath, canonicalPath, linksToNote, mergeFields, safeFileName } from '../src/tasks';
 import { parseOptions } from '../src/view';
 
 test('loadSettings keeps defaults and drops malformed values', () => {
@@ -153,7 +153,7 @@ function fakePlugin(settings: GCalSettings) {
 			return Promise.resolve();
 		},
 		notifyChanged() {},
-		cache: { clearAll() {} },
+		cache: { clearAll() {}, clearTasks() {} },
 	};
 }
 
@@ -206,6 +206,80 @@ test('Auth: a passphrase encrypts the stored login, a second device unlocks it w
 test('safeFileName strips characters Obsidian rejects', () => {
 	assert.equal(safeFileName('a/b: c*?"<>|#^[d]'), 'a b c d');
 	assert.equal(safeFileName('   '), 'Untitled task');
+});
+
+test('back-links mark tasks made from a note and name that note', () => {
+	const link = 'obsidian://open?vault=My%20Vault&file=10-projects%2FARGOS%2Ftasks%2FA%20B';
+	assert.equal(linksToNote(link), true);
+	assert.equal(linksToNote(`${link}\n\nwritten on the phone`), true);
+	assert.equal(linksToNote('call the bank'), false);
+	assert.equal(linksToNote(undefined), false);
+	assert.equal(backlinkPath(link), '10-projects/ARGOS/tasks/A B.md');
+	assert.equal(backlinkPath(`${link}\n\nwritten on the phone`), '10-projects/ARGOS/tasks/A B.md');
+	assert.equal(backlinkPath('call the bank'), '');
+});
+
+test('every device keeps the same note when several claim one task', () => {
+	const paths = ['t/A (1).md', 't/A.md', 't/A (conflict 2026-10-01).md'];
+	assert.equal(canonicalPath(paths, 't/A.md'), 't/A.md', 'the note the task links to');
+	assert.equal(canonicalPath(paths, 't/gone.md'), [...paths].sort()[0], 'else the first path');
+	assert.equal(
+		canonicalPath([...paths].reverse(), ''),
+		canonicalPath(paths, ''),
+		'order does not matter',
+	);
+});
+
+test('mergeFields takes each field from the side that changed it', () => {
+	const base = { title: 'T', due: '2026-10-01', done: false };
+	// Phone completed the task while another device moved the due date in the note: both survive.
+	assert.deepEqual(
+		mergeFields({ ...base, due: '2026-10-05' }, { ...base, done: true }, base, false),
+		{ pull: { done: true }, push: { due: '2026-10-05' } },
+	);
+	assert.deepEqual(
+		mergeFields({ ...base, due: '2026-10-05' }, { ...base, done: true }, base, true),
+		{ pull: { done: true }, push: { due: '2026-10-05' } },
+		'which side is newer does not matter when only one side changed a field',
+	);
+	// Both sides changed the same field: the newer side wins.
+	assert.deepEqual(
+		mergeFields({ ...base, title: 'note' }, { ...base, title: 'google' }, base, true),
+		{
+			pull: { title: 'google' },
+			push: {},
+		},
+	);
+	assert.deepEqual(
+		mergeFields({ ...base, title: 'note' }, { ...base, title: 'google' }, base, false),
+		{
+			pull: {},
+			push: { title: 'note' },
+		},
+	);
+	// No base yet: the newer side wins every differing field, as before.
+	assert.deepEqual(
+		mergeFields({ ...base, due: '2026-10-05' }, { ...base, done: true }, undefined, true),
+		{
+			pull: { due: '2026-10-01', done: true },
+			push: {},
+		},
+	);
+	assert.deepEqual(mergeFields(base, base, undefined, true), { pull: {}, push: {} });
+});
+
+test('Clear cache keeps the task index; logging out drops it', () => {
+	const cache = memoryCache();
+	cache.saveCalendar('c', { syncToken: 's', syncedAt: 1, events: {} });
+	cache.saveTaskIndex({ t1: 'p/tasks/a.md' });
+	cache.saveTaskState({ base: { t1: { title: 'a', due: '', done: false } }, absent: {} });
+	cache.clearAll(['c']);
+	assert.equal(cache.calendar('c'), null);
+	assert.deepEqual(cache.taskIndex(), { t1: 'p/tasks/a.md' });
+	assert.deepEqual(Object.keys(cache.taskState().base), ['t1']);
+	cache.clearTasks();
+	assert.deepEqual(cache.taskIndex(), {});
+	assert.deepEqual(cache.taskState(), { base: {}, absent: {} });
 });
 
 function memoryCache(): Cache {

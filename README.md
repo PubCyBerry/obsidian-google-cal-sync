@@ -37,7 +37,7 @@ You bring your own Google Cloud OAuth client, so nothing goes through a third-pa
 
 | Option      | Values                                   | Default | Meaning                                                                 |
 | ----------- | ---------------------------------------- | ------- | ----------------------------------------------------------------------- |
-| `view`      | `month`, `week`, `day`                   | `month` | Initial view                                                            |
+| `view`      | `month`, `week`, `day`, `list`           | `month` | Initial view. Phones always open on the list                            |
 | `height`    | CSS length or `auto`                     | `auto`  | Calendar height                                                         |
 | `calendars` | list of calendar ids                     | `[]`    | Empty follows the toggles in settings; a list pins those calendars only |
 | `tasks`     | `true`, `false`                          | `true`  | Draw task notes on their due date                                       |
@@ -58,10 +58,17 @@ google_task_id:       # filled by the plugin
 
 - Each project folder gets a Google Tasks list with the project's name.
 - `status: done` ↔ completed. Any other status is *needs action*; completing a task on the phone sets the note to `done`, and un-completing a `done` note sets it to `backlog`.
-- A task added in the Google Tasks app appears as a new note in that project's `tasks/` folder with `status: backlog`.
-- Deleting a note deletes the Google task. Deleting a task in Google (instead of completing it) makes the plugin re-create it from the note.
+- Title, due date and completion merge field by field: a field changed on only one side since the last sync takes that side, so completing a task on the phone while another device moves its due date keeps both changes. A field changed on both sides goes to the newer one.
+- A task added in a Google app appears as a new note in that project's `tasks/` folder with `status: backlog`. Whatever you wrote in the task's notes stays there, below the link back to the note.
+- Deleting a note deletes the Google task. Deleting a task in Google (instead of completing it) makes the plugin re-create it from the note. Both wait about ten minutes first, because vault sync may still be delivering a rename or a deletion from another device.
 - Moving a note to another project moves the task to that project's list.
-- Only `title`, `due`, `status` and `google_task_id` are ever written to a note; bodies and other properties are left alone. Google's task notes field holds an `obsidian://` link back to the note.
+- Only `title`, `due`, `status` and `google_task_id` are ever written to a note; bodies and other properties are left alone. Google's task notes field starts with an `obsidian://` link back to the note.
+
+Every device runs the mirror, so it is built for devices that see each other's notes a few minutes late:
+
+- A task whose notes start with that `obsidian://` link came from a note on some device. A device that does not have the note yet waits for vault sync and never imports the task as a second note.
+- When two notes claim one task (a sync conflict copy, or a note you duplicated), every device mirrors the same one, the note the task links back to. The others are listed in a notice: delete the copy, or clear its `google_task_id` to make it a task of its own.
+- `Clear cache` empties the event cache only. The record of which note owns which task is kept.
 
 Turn mirroring off in settings and the Google Tasks API is never called.
 

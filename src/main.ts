@@ -39,6 +39,12 @@ export default class GCalSync extends Plugin {
 	private lastStart = 0;
 	private lastListRefresh = 0;
 	private noticedError = '';
+	private noticedDuplicates = '';
+	/**
+	 * Set once the plugin is disabled or updated. A code block still on screen keeps a reference to this instance and can
+	 * call sync() on focus; a second instance mirroring alongside the new one would write the task index twice.
+	 */
+	private unloaded = false;
 
 	async onload(): Promise<void> {
 		this.settings = loadSettings(await this.loadData());
@@ -137,6 +143,7 @@ export default class GCalSync extends Plugin {
 	}
 
 	onunload(): void {
+		this.unloaded = true;
 		this.listeners.clear();
 	}
 
@@ -233,7 +240,7 @@ export default class GCalSync extends Plugin {
 	/** Incremental sync of enabled calendars, then task mirroring. Deduplicated and throttled across callers. */
 	sync(opts: { force?: boolean; notice?: boolean } = {}): Promise<void> {
 		if (this.running) return this.running;
-		if (!this.auth.loggedIn || this.auth.locked) return Promise.resolve();
+		if (this.unloaded || !this.auth.loggedIn || this.auth.locked) return Promise.resolve();
 		if (!opts.force && Date.now() - this.lastStart < MIN_SYNC_GAP_MS) return Promise.resolve();
 		this.lastStart = Date.now();
 		this.running = this.runSync(opts.notice ?? false).finally(() => {
@@ -269,6 +276,15 @@ export default class GCalSync extends Plugin {
 					new Notice(
 						`Imported ${r.imported} task${r.imported === 1 ? '' : 's'} from Google Tasks`,
 					);
+				const duplicates = r.duplicates.join('\n');
+				if (duplicates !== this.noticedDuplicates) {
+					this.noticedDuplicates = duplicates;
+					if (duplicates)
+						new Notice(
+							`These task notes share a Google task with another note, so they are not mirrored. Delete the copy, or clear its google_task_id to make it a task of its own:\n${duplicates}`,
+							0,
+						);
+				}
 			}
 			this.status.lastSyncAt = Date.now();
 			this.status.lastError = '';

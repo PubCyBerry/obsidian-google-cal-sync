@@ -300,6 +300,7 @@ export class Auth {
 		this.expiresAt = 0;
 		this.refreshToken = '';
 		this.plugin.cache.clearAll(Object.keys(s.calendars));
+		this.plugin.cache.clearTasks();
 		s.refreshToken = '';
 		s.account = '';
 		s.calendars = {};
