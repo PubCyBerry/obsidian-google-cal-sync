@@ -197,17 +197,26 @@ Triggers include metadata changes of task notes (debounced 1.5 s, forced) so tha
 
 ### Task field ownership
 
-Events are never merged: the last write to Google wins, protected by `If-Match` so a stale client gets a 412 and refreshes. Tasks have two writers, so each field has an owner and a tie-break:
+Events are never merged: the last write to Google wins, protected by `If-Match` so a stale client gets a 412 and refreshes. Tasks have two writers, so the mirrored fields merge field by field against the values both sides held after the last sync (the *base*, kept per device): a field changed on one side only takes that side; a field changed on both sides goes to the side with the later timestamp (Google `updated` against the file's mtime); a pair without a base yet falls back to that timestamp for every field.
 
-| Field | Owner | Push to Google | Pull to note |
-| --- | --- | --- | --- |
-| `title` | note | when different and note is newer | when Google `updated` is newer than the file's mtime; file is renamed too |
-| `due` | note | same | same |
-| completion | both | `done` ↔ `completed`, anything else ↔ `needsAction` | `completed` → `done`; `needsAction` → `backlog` only if the note was `done` |
-| `backlog` / `active` / `blocked`, body, other properties | note only | never sent | never touched |
-| `notes` (Google) | plugin | `obsidian://` back-link | ignored |
+| Field | Push to Google | Pull to note |
+| --- | --- | --- |
+| `title` | `title` | `title`; the file is renamed too |
+| `due` | `due` | `due`, or removed when Google cleared it |
+| completion | `done` ↔ `completed`, anything else ↔ `needsAction` | `completed` → `done`; `needsAction` → `backlog` only if the note was `done` |
+| `backlog` / `active` / `blocked`, body, other properties | never sent | never touched |
+| `notes` (Google) | starts with the `obsidian://` back-link; text written on a phone stays below it | ignored |
 
-Existence rules: a note without an id gets a task; a task without a note is imported as a note, unless the previous sync's index says a note owned it, in which case the note was deleted and the task is deleted; a task whose note moved to another project is moved with `tasks.move?destinationTasklist`.
+Existence rules:
+
+- A note without an id gets a task, unless a task already links back to the note's path: another device made it and the id has not reached this note yet, so the two are paired instead.
+- A task without a note is imported as a note only if it has no back-link, that is, it was typed into a Google app. A task with a back-link came from a note on some device; if this device does not have that note, vault sync has not delivered it yet, and the task is left alone.
+- A task whose note this device paired last time and which is now gone is deleted, after the note has stayed gone for ten minutes (a rename or move still in transit looks like a deletion for a moment).
+- A note whose task Google no longer has gets a new task, after the same ten minutes (the note may be a deletion from another device that has not arrived).
+- When several notes claim one task, the note the task links back to is mirrored (else the first path); the others are skipped and listed in a notice.
+- A task whose note moved to another project is moved with `tasks.move?destinationTasklist`.
+
+These rules are why mirroring can run on every device at once. Vault sync delivers notes minutes late, and each device decides from its own copy, so a rule may never act on something merely being absent from this device. Google, which every device sees at the same moment, carries the evidence instead: the back-link. Issue #10 was the case this broke before: a device that had not yet received another device's notes imported their tasks as new notes, and each copy then got a task of its own.
 
 ## Data
 
@@ -243,7 +252,8 @@ localStorage (per device):
 | Key | Value |
 | --- | --- |
 | `google-cal-sync:<calendarId>` | `{ syncToken, syncedAt, events: { [id]: { id, calendarId, title, start, end, allDay, description, location, recurringEventId, etag } } }` |
-| `google-cal-sync:tasks` | `{ [googleTaskId]: notePath }` from the previous mirror run |
+| `google-cal-sync:tasks` | `{ [googleTaskId]: notePath }` from the previous mirror run. Kept by `Clear cache`, dropped on logout |
+| `google-cal-sync:task-state` | `{ base: { [googleTaskId]: { title, due, done } }, absent: { ["note:" \| "task:" + id]: firstMissingAt } }` |
 
 Task note frontmatter the plugin reads and writes: `type`, `title`, `status`, `due`, `google_task_id`. Nothing else in the note is touched.
 
@@ -260,6 +270,8 @@ Task note frontmatter the plugin reads and writes: `type`, `title`, `status`, `d
 | The loopback server ignores requests without this login's `state` | Reject the login on the first mismatch | A stray or hostile local request must not be able to cancel a login; the real redirect or the timeout ends it |
 | FullCalendar 6, bundled, imported on first block | Hand-drawn grid; FullCalendar 7 | Month/week/day, drag, resize and touch for free under MIT. v7 needs `temporal-polyfill`, separate CSS and renamed variables; v6 injects its CSS and its `--fc-*` variables map cleanly to Obsidian's |
 | Conflict tie-break by file mtime, not frontmatter `modified` | Date-only comparison | A note created today and ticked on the phone today would otherwise be reverted by the note |
+| Field-by-field merge against a per-device base; the timestamp only breaks ties | Whole-record last writer wins | Completing on the phone while another device edits the due date lost one of the two changes |
+| Every device mirrors; Google's back-link decides whether a task is new | A synced task index; one mirroring device; a lease on Google | A synced index arrives as late as the notes. One device stops mirroring whenever it is off, and there is often no device that is always on. A lease needs a visible list or another OAuth scope |
 | `If-Match` on every patch | Blind patch | A 412 costs one extra GET and avoids overwriting an edit made in Google Calendar between syncs |
 | One `select` handler for click and drag-select | `dateClick` + `select` | With `selectable`, a single click fires both; two modals opened |
 | Incremental sync with `syncToken`, first sync bounded to −3/+6 months | Time-window every time | One request per calendar per sync regardless of size; Google's own delta protocol handles deletions |

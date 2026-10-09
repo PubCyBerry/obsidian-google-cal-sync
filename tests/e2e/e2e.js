@@ -21,8 +21,13 @@
 	};
 	const sync = () => plugin.sync({ force: true });
 	const cacheOf = (c) => plugin.cache.calendar(c);
+	// Only blocks on screen: a hidden block (the editing view behind reading view, a background tab) defers its redraw.
+	const visibleBlocks = () =>
+		[...document.querySelectorAll('.gcal')].filter((r) => r.offsetWidth > 0);
 	const uiTitles = () =>
-		[...document.querySelectorAll('.gcal .fc-event')].map((e) => e.textContent.trim());
+		visibleBlocks()
+			.flatMap((r) => [...r.querySelectorAll('.fc-event')])
+			.map((e) => e.textContent.trim());
 	const fm = (path) =>
 		app.metadataCache.getFileCache(app.vault.getFileByPath(path))?.frontmatter ?? {};
 	const waitFor = async (pred, ms = 6000) => {
@@ -34,6 +39,39 @@
 		return false;
 	};
 	const now = () => new Date().toISOString();
+	const ahead = (days, hours = 0) => {
+		const t = new Date();
+		return new Date(t.getFullYear(), t.getMonth(), t.getDate() + days, hours);
+	};
+	/** Local date `days` from today, YYYY-MM-DD, so the event stays in the view the calendar opens on. */
+	const day = (days) => {
+		const d = ahead(days);
+		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+	};
+	const at = (days, hours) => ahead(days, hours).toISOString();
+	const notesIn = (folder) =>
+		app.vault.getFiles().filter((f) => f.path.startsWith(`10-projects/${folder}/tasks/`));
+	const allTasks = () => Object.values(F.tasks).flatMap((l) => Object.values(l));
+	const backlinkTo = (path) =>
+		`obsidian://open?vault=${encodeURIComponent(app.vault.getName())}&file=${encodeURIComponent(path.replace(/\.md$/, ''))}`;
+	/** Shows the month holding `date` (YYYY-MM-DD) in every gcal block. The fixtures use fixed September 2026 dates. */
+	const showMonth = async (date) => {
+		const today = new Date();
+		const [y, m] = date.split('-').map(Number);
+		const diff = y * 12 + m - 1 - (today.getFullYear() * 12 + today.getMonth());
+		for (const root of document.querySelectorAll('.gcal')) {
+			root.querySelector('.fc-today-button')?.click();
+			const button = root.querySelector(diff < 0 ? '.fc-prev-button' : '.fc-next-button');
+			for (let i = 0; i < Math.abs(diff); i++) button?.click();
+		}
+		await sleep(300);
+	};
+	/** Pretends `key` went missing longer ago than the grace period, so the next sync acts on it. */
+	const expireAbsence = (key) => {
+		const s = plugin.cache.taskState();
+		s.absent[key] = Date.now() - 11 * 60_000;
+		plugin.cache.saveTaskState(s);
+	};
 
 	await step('initial sync clears stale error', async () => {
 		await sync();
@@ -46,8 +84,8 @@
 	await step('insert event (modal save path)', async () => {
 		created = await plugin.calendars.insert('primary', {
 			title: 'E2E created',
-			start: '2026-09-16T10:00:00+09:00',
-			end: '2026-09-16T11:00:00+09:00',
+			start: at(1, 10),
+			end: at(1, 11),
 			allDay: false,
 			description: 'd',
 		});
@@ -65,13 +103,13 @@
 	await step('patch event (drag/resize path) with If-Match', async () => {
 		const before = F.events.primary[created.id].etag;
 		const ev = await plugin.calendars.patch('primary', created.id, created.etag, {
-			start: '2026-09-17',
-			end: '2026-09-18',
+			start: day(2),
+			end: day(3),
 			allDay: true,
 		});
 		assert(
-			ev.allDay === true && ev.start === '2026-09-17',
-			'now all-day on 17th: ' + JSON.stringify(ev),
+			ev.allDay === true && ev.start === day(2),
+			'now all-day the day after tomorrow: ' + JSON.stringify(ev),
 		);
 		assert(F.events.primary[created.id].etag !== before, 'etag rotated');
 		assert(!('dateTime' in F.events.primary[created.id].start), 'dateTime cleared on Google');
@@ -225,6 +263,7 @@
 		const t = {
 			id: 'phone1',
 			title: 'From phone',
+			notes: 'bring the receipts',
 			status: 'needsAction',
 			due: '2026-09-22T00:00:00.000Z',
 			updated: now(),
@@ -242,15 +281,19 @@
 			(t.notes || '').startsWith('obsidian://open?vault='),
 			'backlink patched: ' + t.notes,
 		);
+		assert(t.notes.includes('bring the receipts'), 'phone text kept: ' + t.notes);
 		return f.path;
 	});
 
-	await step('note deleted → Google task deleted', async () => {
+	await step('note deleted → Google task deleted after the grace period', async () => {
 		const t = taskOf('Ship it');
 		await app.fileManager.trashFile(
 			app.vault.getFileByPath('10-projects/Second Project/tasks/Ship it.md'),
 		);
 		await sleep(300);
+		await sync();
+		assert(F.tasks[listSecond][t.id], 'task kept while the deletion may still be travelling');
+		expireAbsence(`note:${t.id}`);
 		await sync();
 		assert(!F.tasks[listSecond][t.id], 'task removed on Google');
 		return t.id;
@@ -275,8 +318,15 @@
 		return 'ok';
 	});
 
-	await step('Google deleted a task → note re-created it', async () => {
+	await step('Google deleted a task → note re-creates it after the grace period', async () => {
 		delete F.tasks[listSecond].phone1;
+		await sync();
+		assert(
+			fm('10-projects/Second Project/tasks/From phone.md').google_task_id === 'phone1' &&
+				!allTasks().some((t) => t.title === 'From phone'),
+			'not re-created while a note deletion may still be travelling',
+		);
+		expireAbsence('task:phone1');
 		await sync();
 		assert(
 			await waitFor(
@@ -290,6 +340,115 @@
 		assert(gid && F.tasks[listSecond][gid], 'new task exists: ' + gid);
 		return gid;
 	});
+
+	// ---- Issue #10: several devices, one vault sync behind another ----
+
+	await step('task made from a note this device has not received is not imported', async () => {
+		const t = {
+			id: 'elsewhere1',
+			title: 'Made on another device',
+			notes: backlinkTo('10-projects/Test Project/tasks/Made on another device.md'),
+			status: 'needsAction',
+			updated: now(),
+		};
+		F.tasks[listTest][t.id] = t;
+		const before = notesIn('Test Project').length;
+		await sync();
+		await sleep(300);
+		assert(notesIn('Test Project').length === before, 'no note imported');
+		assert(F.tasks[listTest].elsewhere1, 'task left alone');
+		return before;
+	});
+
+	await step('the note arriving later pairs with its task through the back-link', async () => {
+		const path = '10-projects/Test Project/tasks/Made on another device.md';
+		const tasksBefore = allTasks().length;
+		await app.vault.create(
+			path,
+			'---\ntype: Task\ntitle: Made on another device\nstatus: active\n---\n',
+		);
+		await sleep(2500); // the note change also triggers a sync of its own
+		await sync();
+		assert(allTasks().length === tasksBefore, 'no second task created');
+		assert(
+			plugin.cache.taskIndex().elsewhere1 === path,
+			'paired: ' + JSON.stringify(plugin.cache.taskIndex()),
+		);
+		return path;
+	});
+
+	await step('an empty task index does not re-import tasks made from notes', async () => {
+		plugin.cache.saveTaskIndex({});
+		plugin.cache.saveTaskState({ base: {}, absent: {} });
+		const notesBefore = notesIn('Test Project').length + notesIn('Second Project').length;
+		const tasksBefore = allTasks().length;
+		await sync();
+		await sleep(300);
+		assert(
+			notesIn('Test Project').length + notesIn('Second Project').length === notesBefore,
+			'no notes imported',
+		);
+		assert(allTasks().length === tasksBefore, 'no tasks created');
+		return notesBefore;
+	});
+
+	await step('a copy claiming the same task creates nothing and is reported', async () => {
+		const src = app.vault.getFileByPath('10-projects/Test Project/tasks/Write the README.md');
+		const tasksBefore = allTasks().length;
+		const copy = await app.vault.copy(
+			src,
+			'10-projects/Test Project/tasks/Write the README (1).md',
+		);
+		await sleep(2500); // let the sync the copy triggers finish before calling the mirror directly
+		await waitFor(() => !plugin.status.syncing);
+		const r = await plugin.tasks.sync();
+		assert(allTasks().length === tasksBefore, 'no task for the copy');
+		assert(
+			r.duplicates.length === 1 && r.duplicates[0] === copy.path,
+			'copy reported, original kept: ' + JSON.stringify(r.duplicates),
+		);
+		await app.vault.delete(copy);
+		return r.duplicates;
+	});
+
+	await step('Clear cache keeps the task index', async () => {
+		const index = plugin.cache.taskIndex();
+		plugin.clearCache();
+		assert(
+			JSON.stringify(plugin.cache.taskIndex()) === JSON.stringify(index) &&
+				Object.keys(index).length > 0,
+			'index survived',
+		);
+		return Object.keys(index).length;
+	});
+
+	await step(
+		'phone completes while a note moves its due date: both changes survive',
+		async () => {
+			await sync(); // settle the base
+			await sleep(1100);
+			const t = taskOf('Wait for review: v2');
+			t.status = 'completed';
+			t.completed = now();
+			t.updated = now();
+			await sleep(1100);
+			const file = app.vault.getFileByPath(
+				'10-projects/Test Project/tasks/Wait for review v2.md',
+			);
+			await app.fileManager.processFrontMatter(file, (f) => {
+				f.due = '2026-10-20';
+			});
+			await sleep(500);
+			await sync();
+			assert(
+				await waitFor(() => fm(file.path).status === 'done'),
+				'completion reached the note: ' + JSON.stringify(fm(file.path)),
+			);
+			assert(t.due === '2026-10-20T00:00:00.000Z', 'due reached Google: ' + t.due);
+			assert(t.status === 'completed', 'Google stays completed');
+			return 'ok';
+		},
+	);
 
 	await step('mirror off → no Tasks API calls', async () => {
 		plugin.settings.mirror = false;
@@ -311,6 +470,11 @@
 	});
 
 	await step('calendar toggle off hides its events and persists', async () => {
+		for (const b of document.querySelectorAll('.gcal .fc-today-button')) b.click();
+		assert(
+			await waitFor(() => uiTitles().some((t) => t.includes('Offsite'))),
+			'Offsite shown first',
+		);
 		plugin.settings.calendars['work@group.calendar.google.com'].enabled = false;
 		await plugin.saveSettings();
 		plugin.notifyChanged();
@@ -332,7 +496,9 @@
 
 	await step('task checkbox click → note done → pushed to Google', async () => {
 		await sleep(1100);
-		const box = [...document.querySelectorAll('.gcal .gcal-task')]
+		await showMonth('2026-09-15');
+		const box = visibleBlocks()
+			.flatMap((r) => [...r.querySelectorAll('.gcal-task')])
 			.find((e) => e.textContent.includes('Write the README'))
 			?.querySelector('input');
 		assert(box, 'checkbox found');

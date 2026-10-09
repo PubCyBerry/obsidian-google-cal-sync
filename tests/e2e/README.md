@@ -26,7 +26,17 @@ obsidian eval code="window.__login.steps.map(s => (s.ok ? 'PASS ' : 'FAIL ') + s
 ```
 
 `e2e.js` covers event insert/patch/412/410/delete, incremental sync, every task
-mirroring rule, the request budget, calendar toggles and the task checkbox.
+mirroring rule including the multi-device cases of issue #10 (a task from a note
+this device has not received yet, an empty task index, a duplicated note, a
+change on each side at once), the request budget, calendar toggles and the task
+checkbox.
+
+Keep the vault's window on screen while it runs. A block that is not visible
+defers its redraw, and reading view does not draw it at all, so the UI steps
+fail in a hidden or covered window; Live Preview with the window on top is the
+reliable setup. If you disabled and re-enabled the plugin in this window with a
+build from before the `unloaded` guard in `main.ts`, reload the window first:
+code blocks from the old instance keep syncing in the background.
 `login-test.js` drives the loopback server with a fake browser: PKCE parameters,
 state mismatch, Google error, and a bogus code that is exchanged against the real
 token endpoint (needs a client ID and secret in `data.json`). Reset the task notes
