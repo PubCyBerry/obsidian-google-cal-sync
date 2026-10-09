@@ -2,6 +2,13 @@
 
 All notable changes to this plugin are recorded here. Entries below 1.3.0 were written by hand; from 1.3.0 on, [release-please](https://github.com/googleapis/release-please) generates them from [Conventional Commits](https://www.conventionalcommits.org/). Versions follow [Semantic Versioning](https://semver.org/), and each one has a matching GitHub release tag that Obsidian installs from.
 
+## [1.6.1](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.6.0...1.6.1) (2026-10-09)
+
+
+### Bug Fixes
+
+* keep task mirroring from multiplying notes across devices ([#11](https://github.com/PubCyBerry/obsidian-google-cal-sync/issues/11)) ([6ad89f2](https://github.com/PubCyBerry/obsidian-google-cal-sync/commit/6ad89f2f46bc0b34f6f9bde325a143669507ddfc))
+
 ## [1.6.0](https://github.com/PubCyBerry/obsidian-google-cal-sync/compare/1.5.0...1.6.0) (2026-09-21)
 
 
