@@ -80,6 +80,20 @@ Calendar colours follow the Google Calendar apps (the API reports the classic pa
 
 `Log in to Google` (desktop only), `Log out`, `Sync now`, `Clear cache`, `Open calendar view`.
 
+### API for scripts and other plugins
+
+`app.plugins.plugins['google-cal-sync'].api` opens the calendar's own event modal from anywhere, for example a `dataviewjs` block that lists today's events. Both calls resolve when the modal closes; saving or deleting there updates Google and the cache and redraws every calendar, exactly as a click in the calendar does.
+
+```js
+const api = app.plugins.plugins['google-cal-sync'].api;
+// Edit an event from this device's cache (local storage key `google-cal-sync:<calendarId>`).
+await api.openEvent('primary', eventId);
+// New event: all-day when `start` is left out; `end` defaults to an hour after `start`.
+await api.createEvent({ date: '2026-10-15', start: '09:30', end: '10:30', calendarId: 'primary' });
+```
+
+`openEvent` rejects when the cache has no such event, and `createEvent` rejects a malformed date or time or an unknown calendar. A device that cannot show the calendar (no client, not logged in, locked) shows the same message in a notice and opens nothing. The types are in [`src/api.ts`](src/api.ts).
+
 ## Mobile
 
 Obsidian Mobile cannot run the local login server, so log in on desktop. The encrypted refresh token is stored in this plugin's `data.json`, which your vault sync (Obsidian Sync, iCloud, Syncthing, …) carries to the other devices. On each of them, enter the same sync passphrase once in the plugin settings and press **Unlock**; from then on the plugin refreshes the access token by itself. If a device shows "Log in on desktop", its `data.json` has not arrived yet; if it shows "Enter the sync passphrase", it has arrived and is waiting for the passphrase.

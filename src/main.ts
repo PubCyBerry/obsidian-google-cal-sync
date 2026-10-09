@@ -1,4 +1,5 @@
 import { debounce, Notice, Platform, Plugin } from 'obsidian';
+import { createApi, type GoogleCalSyncApi } from './api';
 import { Auth, AuthError } from './auth';
 import { Cache } from './cache';
 import { CACHE_WARN_COUNT, CalendarSync, listCalendars } from './calendar';
@@ -32,6 +33,8 @@ export default class GCalSync extends Plugin {
 	calendars!: CalendarSync;
 	tasks!: TaskMirror;
 	status: SyncStatus = { syncing: false, lastSyncAt: 0, lastError: '' };
+	/** Public entry points for other plugins and scripts; see api.ts. */
+	readonly api: GoogleCalSyncApi = createApi(this);
 
 	private listeners = new Set<() => void>();
 	private timer = 0;

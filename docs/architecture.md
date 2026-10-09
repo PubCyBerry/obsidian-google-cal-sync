@@ -80,6 +80,7 @@ C4Component
         Component(colors, "colors.ts", "Table", "Classic → modern Google calendar palette")
         Component(fc, "fc.ts", "Lazy module", "Re-exports FullCalendar core, dayGrid, timeGrid, interaction, locales")
         Component(modal, "modal.ts · EventModal", "Modal", "Create/edit/delete one event; validates title and range")
+        Component(api, "api.ts · plugin.api", "Public API", "openEvent / createEvent for scripts and other plugins: checks input, opens EventModal, resolves on close")
     }
     Rel(plugin, settings, "")
     Rel(plugin, auth, "")
@@ -93,6 +94,9 @@ C4Component
     Rel(plugin, colors, "on calendarList refresh")
     Rel(view, fc, "await import()")
     Rel(view, modal, "opens")
+    Rel(plugin, api, "exposes")
+    Rel(api, modal, "opens")
+    Rel(api, view, "blockedMessage")
     Rel(view, calendar, "patch on drag/resize")
     Rel(modal, calendar, "insert / patch / remove")
     Rel(calendar, google, "")
@@ -110,7 +114,7 @@ C4Component
 | `google.ts` | `requestUrl` | nothing |
 | `calendar.ts`, `cache.ts` | `App.loadLocalStorage/saveLocalStorage` | nothing |
 | `tasks.ts` | `Vault`, `MetadataCache`, `FileManager.processFrontMatter/renameFile` | nothing |
-| `view.ts`, `modal.ts`, `pane.ts` | `MarkdownRenderChild`, `ItemView`, `Modal`, `Setting`, `getLanguage`, `parseYaml` | nothing |
+| `view.ts`, `modal.ts`, `pane.ts`, `api.ts` | `MarkdownRenderChild`, `ItemView`, `Modal`, `Setting`, `Notice`, `getLanguage`, `parseYaml` | nothing |
 
 Everything except the loopback server therefore runs unchanged on mobile, which is what lets `isDesktopOnly` be `false`.
 
@@ -293,5 +297,5 @@ Task note frontmatter the plugin reads and writes: `type`, `title`, `status`, `d
 ## Testing
 
 - `npm test`: node:test over the pure logic (settings loader, block options, event mapping, `GoogleClient` retry and errors, `CalendarSync` full/incremental/410/pagination, 412 handling) with an `obsidian` stub.
-- `tests/e2e/`: scripts run inside a development vault against a fake Google transport swapped in at the `GoogleClient.send` level, so `GoogleError` handling is the real code. They cover the whole task ruleset, the calendar write paths and the UI wiring; `login-test.js` drives the loopback server with a fake browser up to the real token endpoint.
+- `tests/e2e/`: scripts run inside a development vault against a fake Google transport swapped in at the `GoogleClient.send` level, so `GoogleError` handling is the real code. They cover the whole task ruleset, the calendar write paths, the UI wiring and the public API's modals; `login-test.js` drives the loopback server with a fake browser up to the real token endpoint.
 - GitHub Actions runs build, lint and unit tests on Node 20, 22 and 24; release-please keeps a release pull request open on `master`, and merging it tags the commit, publishes the GitHub release and attaches the attested build assets.
