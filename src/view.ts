@@ -10,7 +10,7 @@ import { getLanguage, MarkdownRenderChild, Notice, Platform, parseYaml } from 'o
 import type { CachedEvent } from './cache';
 import { addDays, fmtLocal, fromNow } from './dates';
 import type GCalSync from './main';
-import { EventModal } from './modal';
+import { EventModal, type EventModalParams } from './modal';
 import { errorMessage, WEEKDAYS } from './settings';
 
 const VIEWS = {
@@ -63,6 +63,20 @@ export function parseOptions(source: string): BlockOptions | string {
 	return opts;
 }
 
+/** What this device shows instead of the calendar when it cannot draw one; empty when it can. */
+export function blockedMessage(plugin: GCalSync): string {
+	const s = plugin.settings;
+	if (!s.clientId || !s.clientSecret)
+		return 'Enter a Google client ID and secret in the plugin settings.';
+	if (!s.refreshToken)
+		return Platform.isDesktop
+			? 'Log in to Google in the plugin settings to see your calendar here.'
+			: 'Log in on desktop. The calendar appears here once the vault syncs the login to this device.';
+	if (plugin.auth.locked)
+		return 'Enter the sync passphrase in the plugin settings to unlock the calendar on this device.';
+	return '';
+}
+
 type Kind = { kind: 'event'; ev: CachedEvent } | { kind: 'task'; path: string; status: string };
 
 export class GCalBlock extends MarkdownRenderChild {
@@ -70,7 +84,8 @@ export class GCalBlock extends MarkdownRenderChild {
 	private toolbar!: HTMLElement;
 	private pill!: HTMLElement;
 	private showTasks: boolean;
-	private lastState = '';
+	/** The blocked message the block last drew, '' for the calendar itself; null before the first draw. */
+	private lastState: string | null = null;
 	/** A redraw was requested while the block had no size (hidden tab); done when it becomes visible. */
 	private dirty = false;
 	private resizeObserver: ResizeObserver | null = null;
@@ -118,8 +133,7 @@ export class GCalBlock extends MarkdownRenderChild {
 	}
 
 	private refresh = (): void => {
-		const state = this.stateKey();
-		if (state !== this.lastState) {
+		if (blockedMessage(this.plugin) !== this.lastState) {
 			void this.render();
 			return;
 		}
@@ -132,43 +146,13 @@ export class GCalBlock extends MarkdownRenderChild {
 		this.calendar?.refetchEvents();
 	};
 
-	private stateKey(): string {
-		const s = this.plugin.settings;
-		return !s.clientId || !s.clientSecret
-			? 'no-client'
-			: !s.refreshToken
-				? 'no-token'
-				: this.plugin.auth.locked
-					? 'locked'
-					: 'ready';
-	}
-
 	private async render(): Promise<void> {
-		const state = (this.lastState = this.stateKey());
+		const blocked = (this.lastState = blockedMessage(this.plugin));
 		this.calendar?.destroy();
 		this.calendar = null;
 		this.containerEl.empty();
-		if (state === 'no-client') {
-			this.containerEl.createEl('p', {
-				cls: 'gcal-empty',
-				text: 'Enter a Google client ID and secret in the plugin settings.',
-			});
-			return;
-		}
-		if (state === 'no-token') {
-			this.containerEl.createEl('p', {
-				cls: 'gcal-empty',
-				text: Platform.isDesktop
-					? 'Log in to Google in the plugin settings to see your calendar here.'
-					: 'Log in on desktop. The calendar appears here once the vault syncs the login to this device.',
-			});
-			return;
-		}
-		if (state === 'locked') {
-			this.containerEl.createEl('p', {
-				cls: 'gcal-empty',
-				text: 'Enter the sync passphrase in the plugin settings to unlock the calendar on this device.',
-			});
+		if (blocked) {
+			this.containerEl.createEl('p', { cls: 'gcal-empty', text: blocked });
 			return;
 		}
 		this.toolbar = this.containerEl.createDiv({ cls: 'gcal-toolbar' });
@@ -394,8 +378,8 @@ export class GCalBlock extends MarkdownRenderChild {
 		this.openModal({ event: kind.ev });
 	}
 
-	private openModal(params: ConstructorParameters<typeof EventModal>[1]): void {
-		new EventModal(this.plugin, params, () => this.plugin.notifyChanged()).open();
+	private openModal(params: EventModalParams): void {
+		new EventModal(this.plugin, params).open();
 	}
 
 	private async onMove(info: EventDropArg | EventResizeDoneArg): Promise<void> {

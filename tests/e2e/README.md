@@ -28,8 +28,8 @@ obsidian eval code="window.__login.steps.map(s => (s.ok ? 'PASS ' : 'FAIL ') + s
 `e2e.js` covers event insert/patch/412/410/delete, incremental sync, every task
 mirroring rule including the multi-device cases of issue #10 (a task from a note
 this device has not received yet, an empty task index, a duplicated note, a
-change on each side at once), the request budget, calendar toggles and the task
-checkbox.
+change on each side at once), the request budget, calendar toggles, the task
+checkbox, and the `api` object's `openEvent` and `createEvent` modals.
 
 Keep the vault's window on screen while it runs. A block that is not visible
 defers its redraw, and reading view does not draw it at all, so the UI steps

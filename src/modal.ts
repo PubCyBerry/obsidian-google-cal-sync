@@ -27,13 +27,18 @@ export class EventModal extends Modal {
 	private location = '';
 	private deleteArmed = false;
 	private busy = false;
+	private settle: () => void = () => {};
+	/** Settles when the modal closes, whether it saved, deleted or was cancelled. */
+	readonly closed: Promise<void>;
 
 	constructor(
 		private plugin: GCalSync,
 		private params: EventModalParams,
-		private onDone: () => void,
 	) {
 		super(plugin.app);
+		this.closed = new Promise((resolve) => {
+			this.settle = resolve;
+		});
 		const ev = params.event;
 		const enabled = Object.entries(plugin.settings.calendars).filter(([, c]) => c.enabled);
 		this.calendarId =
@@ -164,6 +169,7 @@ export class EventModal extends Modal {
 
 	onClose(): void {
 		this.contentEl.empty();
+		this.settle();
 	}
 
 	private saveButton: HTMLButtonElement | null = null;
@@ -207,11 +213,11 @@ export class EventModal extends Modal {
 			const ev = this.params.event;
 			if (ev) await this.plugin.calendars.patch(ev.calendarId, ev.id, ev.etag, input);
 			else await this.plugin.calendars.insert(this.calendarId, input);
-			this.onDone();
+			this.plugin.notifyChanged();
 			this.close();
 		} catch (e) {
 			new Notice(`Could not save to Google: ${errorMessage(e)}`);
-			this.onDone();
+			this.plugin.notifyChanged();
 		} finally {
 			this.busy = false;
 			this.validate();
@@ -224,7 +230,7 @@ export class EventModal extends Modal {
 		this.busy = true;
 		try {
 			await this.plugin.calendars.remove(ev.calendarId, ev.id);
-			this.onDone();
+			this.plugin.notifyChanged();
 			this.close();
 		} catch (e) {
 			new Notice(`Could not save to Google: ${errorMessage(e)}`);

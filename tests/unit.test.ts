@@ -465,6 +465,55 @@ test('date helpers: date-only parsing stays local, day arithmetic crosses months
 	assert.equal(fromNow(Date.now() - 86_400_000), '1d ago');
 });
 
+test('createEvent input becomes the prefill an empty-slot click gives, and bad input is rejected', async () => {
+	const { createParams } = await import('../src/api');
+	const { fmtLocal, parseLocal } = await import('../src/dates');
+	const cals = { primary: { name: 'Me', color: '', enabled: true } };
+	assert.deepEqual(createParams({ date: '2026-10-31' }, cals), {
+		calendarId: undefined,
+		allDay: true,
+		start: '2026-10-31',
+		end: '2026-11-01',
+	});
+	assert.deepEqual(
+		createParams(
+			{ date: '2026-10-15', start: '09:30', end: '11:00', calendarId: 'primary' },
+			cals,
+		),
+		{
+			calendarId: 'primary',
+			allDay: false,
+			start: fmtLocal(parseLocal('2026-10-15', '09:30')),
+			end: fmtLocal(parseLocal('2026-10-15', '11:00')),
+		},
+	);
+	assert.equal(createParams({ date: '2026-10-15', start: '09:30' }, cals).end, undefined);
+	for (const [init, msg] of [
+		[{ date: '2026-13-01' }, /date/],
+		[{ date: '15.10.2026' }, /date/],
+		[{ date: '2026-10-15', start: '9:30' }, /start/],
+		[{ date: '2026-10-15', start: '25:00' }, /start/],
+		[{ date: '2026-10-15', end: '10:00' }, /end needs/],
+		[{ date: '2026-10-15', start: '10:00', end: '09:00' }, /before/],
+		[{ date: '2026-10-15', calendarId: 'nope' }, /Unknown calendar/],
+	] as const)
+		assert.throws(() => createParams(init, cals), msg);
+});
+
+test('blockedMessage names what keeps the calendar from drawing', async () => {
+	const { blockedMessage } = await import('../src/view');
+	const plugin = (settings: Partial<GCalSettings>, locked = false) =>
+		({
+			settings: { ...DEFAULT_SETTINGS, ...settings },
+			auth: { locked },
+		}) as unknown as Parameters<typeof blockedMessage>[0];
+	const ready = { clientId: 'id', clientSecret: 's', refreshToken: 'enc1.x' };
+	assert.match(blockedMessage(plugin({})), /client ID/);
+	assert.match(blockedMessage(plugin({ ...ready, refreshToken: '' })), /Log in/);
+	assert.match(blockedMessage(plugin(ready, true)), /passphrase/);
+	assert.equal(blockedMessage(plugin(ready)), '');
+});
+
 test('calendar colours map from the classic API palette to the modern one', async () => {
 	const { modernColor } = await import('../src/colors');
 	assert.equal(modernColor('#9fe1e7'), '#039be5');
