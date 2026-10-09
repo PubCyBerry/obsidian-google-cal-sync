@@ -529,31 +529,48 @@
 	};
 	const settled = (p) => Promise.race([p.then(() => true), sleep(3000).then(() => false)]);
 
-	await step('api.openEvent opens the edit modal; saving reaches Google, the cache and listeners', async () => {
-		await sync();
-		const ev = Object.values(cacheOf('primary').events).find((e) => e.title === 'Weekly meeting');
-		assert(ev, 'cached event found');
-		let heard = 0;
-		const listener = () => heard++;
-		plugin.addListener(listener);
-		try {
-			const closed = plugin.api.openEvent('primary', ev.id);
-			assert(await waitFor(() => modalEl()), 'modal opened');
-			assert(modalEl().querySelector('.modal-title').textContent === 'Edit event', 'edit title');
-			assert(modalEl().querySelector('.gcal-modal-title').value === 'Weekly meeting', 'prefilled');
-			typeTitle('Weekly meeting (api)');
-			modalEl().querySelector('button.mod-cta').click();
-			assert(await settled(closed), 'promise resolves when the modal closes');
-			assert(!modalEl(), 'modal closed');
-			assert(F.events.primary[ev.id].summary === 'Weekly meeting (api)', 'Google updated');
-			assert(cacheOf('primary').events[ev.id].title === 'Weekly meeting (api)', 'cache updated');
-			assert(heard > 0, 'listeners called');
-		} finally {
-			plugin.removeListener(listener);
-			closeModals();
-		}
-		return ev.id;
-	});
+	await step(
+		'api.openEvent opens the edit modal; saving reaches Google, the cache and listeners',
+		async () => {
+			await sync();
+			const ev = Object.values(cacheOf('primary').events).find(
+				(e) => e.title === 'Weekly meeting',
+			);
+			assert(ev, 'cached event found');
+			let heard = 0;
+			const listener = () => heard++;
+			plugin.addListener(listener);
+			try {
+				const closed = plugin.api.openEvent('primary', ev.id);
+				assert(await waitFor(() => modalEl()), 'modal opened');
+				assert(
+					modalEl().querySelector('.modal-title').textContent === 'Edit event',
+					'edit title',
+				);
+				assert(
+					modalEl().querySelector('.gcal-modal-title').value === 'Weekly meeting',
+					'prefilled',
+				);
+				typeTitle('Weekly meeting (api)');
+				modalEl().querySelector('button.mod-cta').click();
+				assert(await settled(closed), 'promise resolves when the modal closes');
+				assert(!modalEl(), 'modal closed');
+				assert(
+					F.events.primary[ev.id].summary === 'Weekly meeting (api)',
+					'Google updated',
+				);
+				assert(
+					cacheOf('primary').events[ev.id].title === 'Weekly meeting (api)',
+					'cache updated',
+				);
+				assert(heard > 0, 'listeners called');
+			} finally {
+				plugin.removeListener(listener);
+				closeModals();
+			}
+			return ev.id;
+		},
+	);
 
 	await step('api.openEvent on a recurring instance shows the one-occurrence note', async () => {
 		const ev = Object.values(cacheOf('primary').events).find((e) => e.recurringEventId);
@@ -574,59 +591,82 @@
 		return error.message;
 	});
 
-	await step('api.createEvent with a date opens an all-day New event that saves to Google', async () => {
-		const date = day(3);
-		const closed = plugin.api.createEvent({ date });
-		assert(await waitFor(() => modalEl()), 'modal opened');
-		assert(modalEl().querySelector('.modal-title').textContent === 'New event', 'new title');
-		assert(modalEl().querySelector('.checkbox-container.is-enabled'), 'all day on');
-		const dates = [...modalEl().querySelectorAll('input[type=date]')].map((i) => i.value);
-		assert(dates.join() === `${date},${date}`, 'dates: ' + dates.join());
-		typeTitle('API all-day');
-		modalEl().querySelector('button.mod-cta').click();
-		assert(await settled(closed), 'resolves on save');
-		const made = Object.values(F.events.primary).find((e) => e.summary === 'API all-day');
-		assert(made && made.start.date === date && made.end.date === day(4), 'Google: ' + JSON.stringify(made?.start));
-		return made.id;
-	});
+	await step(
+		'api.createEvent with a date opens an all-day New event that saves to Google',
+		async () => {
+			const date = day(3);
+			const closed = plugin.api.createEvent({ date });
+			assert(await waitFor(() => modalEl()), 'modal opened');
+			assert(
+				modalEl().querySelector('.modal-title').textContent === 'New event',
+				'new title',
+			);
+			assert(modalEl().querySelector('.checkbox-container.is-enabled'), 'all day on');
+			const dates = [...modalEl().querySelectorAll('input[type=date]')].map((i) => i.value);
+			assert(dates.join() === `${date},${date}`, 'dates: ' + dates.join());
+			typeTitle('API all-day');
+			modalEl().querySelector('button.mod-cta').click();
+			assert(await settled(closed), 'resolves on save');
+			const made = Object.values(F.events.primary).find((e) => e.summary === 'API all-day');
+			assert(
+				made && made.start.date === date && made.end.date === day(4),
+				'Google: ' + JSON.stringify(made?.start),
+			);
+			return made.id;
+		},
+	);
 
-	await step('api.createEvent with a time and calendar prefills both; bad input rejects', async () => {
-		const closed = plugin.api.createEvent({
-			date: day(2),
-			start: '14:00',
-			calendarId: 'work@group.calendar.google.com',
-		});
-		assert(await waitFor(() => modalEl()), 'modal opened');
-		const times = [...modalEl().querySelectorAll('input[type=time]')].map((i) => i.value);
-		assert(times.join() === '14:00,15:00', 'times: ' + times.join());
-		assert(modalEl().querySelector('select').value === 'work@group.calendar.google.com', 'calendar');
-		assert(!modalEl().querySelector('.checkbox-container.is-enabled'), 'all day off');
-		const before = Object.keys(F.events['work@group.calendar.google.com']).length;
-		closeModals();
-		assert(await settled(closed), 'cancel resolves');
-		assert(Object.keys(F.events['work@group.calendar.google.com']).length === before, 'nothing created');
-		let error;
-		await plugin.api.createEvent({ date: '2026-02-30' }).catch((e) => (error = e));
-		assert(error && /date/.test(error.message), 'bad date rejected: ' + error);
-		assert(!modalEl(), 'no modal for bad input');
-		return 'ok';
-	});
+	await step(
+		'api.createEvent with a time and calendar prefills both; bad input rejects',
+		async () => {
+			const closed = plugin.api.createEvent({
+				date: day(2),
+				start: '14:00',
+				calendarId: 'work@group.calendar.google.com',
+			});
+			assert(await waitFor(() => modalEl()), 'modal opened');
+			const times = [...modalEl().querySelectorAll('input[type=time]')].map((i) => i.value);
+			assert(times.join() === '14:00,15:00', 'times: ' + times.join());
+			assert(
+				modalEl().querySelector('select').value === 'work@group.calendar.google.com',
+				'calendar',
+			);
+			assert(!modalEl().querySelector('.checkbox-container.is-enabled'), 'all day off');
+			const before = Object.keys(F.events['work@group.calendar.google.com']).length;
+			closeModals();
+			assert(await settled(closed), 'cancel resolves');
+			assert(
+				Object.keys(F.events['work@group.calendar.google.com']).length === before,
+				'nothing created',
+			);
+			let error;
+			await plugin.api.createEvent({ date: '2026-02-30' }).catch((e) => (error = e));
+			assert(error && /date/.test(error.message), 'bad date rejected: ' + error);
+			assert(!modalEl(), 'no modal for bad input');
+			return 'ok';
+		},
+	);
 
-	await step('api on a device without a login shows the calendar notice and opens nothing', async () => {
-		const token = plugin.settings.refreshToken;
-		const notices = () =>
-			[...document.querySelectorAll('.notice')].filter((n) => /Log in to Google/.test(n.textContent)).length;
-		const shown = notices();
-		plugin.settings.refreshToken = '';
-		try {
-			await plugin.api.createEvent({ date: day(1) });
-			assert(!modalEl(), 'no modal');
-			assert(notices() > shown, 'notice shown');
-		} finally {
-			plugin.settings.refreshToken = token;
-		}
-		return 'ok';
-	});
+	await step(
+		'api on a device without a login shows the calendar notice and opens nothing',
+		async () => {
+			const token = plugin.settings.refreshToken;
+			const notices = () =>
+				[...document.querySelectorAll('.notice')].filter((n) =>
+					/Log in to Google/.test(n.textContent),
+				).length;
+			const shown = notices();
+			plugin.settings.refreshToken = '';
+			try {
+				await plugin.api.createEvent({ date: day(1) });
+				assert(!modalEl(), 'no modal');
+				assert(notices() > shown, 'notice shown');
+			} finally {
+				plugin.settings.refreshToken = token;
+			}
+			return 'ok';
+		},
+	);
 
 	out.done = true;
 })();
